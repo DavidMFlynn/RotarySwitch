@@ -1,0 +1,2176 @@
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001 ;====================================================================================================
+                      00002 ;
+                      00003 ;    Filename:      RotarySwitch.asm
+                      00004 ;    Date:          7/11/2019
+                      00005 ;    File Version:  1.0d1
+                      00006 ;
+                      00007 ;    Author:        David M. Flynn
+                      00008 ;    Company:       Oxford V.U.E., Inc.
+                      00009 ;    E-Mail:        dflynn@oxfordvue.com
+                      00010 ;    Web Site:      http://www.oxfordvue.com/
+                      00011 ;
+                      00012 ;====================================================================================================
+                      00013 ;    Rotary Switch is a no-break/no-make before make rotary switch
+                      00014 ;
+                      00015 ;  5 Photo sensors, enable and A0..A3, allow 2..16 positions
+                      00016 ;  Drives 1 of 16 outputs on command and doesn't change until a new valid command is received.
+                      00017 ;  Start button input and active LED output.
+                      00018 ;
+                      00019 ;
+                      00020 ;    History:
+                      00021 ; 1.0d1   7/11/2019     First code. Copied from SerialServo
+                      00022 ;
+                      00023 ;====================================================================================================
+                      00024 ; Options
+                      00025 ;
+                      00026 ;====================================================================================================
+                      00027 ;====================================================================================================
+                      00028 ; What happens next:
+                      00029 ;   At power up the system LED will blink.
+                      00030 ;   Align knob to desired setting and press start button.
+                      00031 ;   Hold start button for 2 seconds to disable.
+                      00032 ;   If enable is active select output from address A0..A3
+                      00033 ;   If there is an active setting
+                      00034 ;      If input Ena,A0..A3 matches setting then light Active LED.
+                      00035 ;      If input does not match setting the fast blink Active LED.
+                      00036 ;====================================================================================================
+                      00037 ;
+                      00038 ;   Pin 1 (RA2/AN2) Output A2 (Digital Output)
+                      00039 ;   Pin 2 (RA3/AN3) Output A3 (Digital Output)
+                      00040 ;   Pin 3 (RA4/AN4) Output Enable (Active Low Output)
+                      00041 ;   Pin 4 (RA5/MCLR*) VPP/MCLR*
+                      00042 ;   Pin 5 (GND) Ground
+                      00043 ;   Pin 6 (RB0) Input A0 (Active Low Input)
+                      00044 ;   Pin 7 (RB1/AN11/SDA1) Input A1 (Active Low Input)
+                      00045 ;   Pin 8 (RB2/AN10/TX) RX (Optional, future feature) or Active LED (Active High Output)
+                      00046 ;   Pin 9 (RB3/CCP1) Input A2 (Active Low Input)
+                      00047 ;
+                      00048 ;   Pin 10 (RB4/AN8/SLC1) Input A3 (Active Low Input)
+                      00049 ;   Pin 11 (RB5/AN7) Start Button (Active Low Input)
+                      00050 ;   Pin 12 (RB6/AN5/CCP2) ICSPCLK
+                      00051 ;   Pin 13 (RB7/AN6) ICSPDAT
+                      00052 ;   Pin 14 (Vcc) +5 volts
+                      00053 ;   Pin 15 (RA6) Input Enable (Active Low Input)
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00054 ;   Pin 16 (RA7/CCP2) System LED (Active Low Output)(System LED)
+                      00055 ;   Pin 17 (RA0/AN0) Output A0 (Digital Output)
+                      00056 ;   Pin 18 (RA1) Output A1 (Digital Output)
+                      00057 ;
+                      00058 ;====================================================================================================
+                      00059 ;
+                      00060 ;
+                      00061         list    p=16f1847,r=hex,W=1     ; list directive to define processor
+                      00001         LIST
+                      00002 ;
+                      00003 ;==========================================================================
+                      00004 ;  MPASM PIC16F1847 processor include
+                      00005 ; 
+                      00006 ;  (c) Copyright 1999-2013 Microchip Technology, All rights reserved
+                      00007 ;  Modified by DMF 11/16/2013
+                      00008 ;==========================================================================
+                      00009 ;
+                      01163         LIST
+                      01164 ;
+                      00064         list
+                      00065 ;
+8007   2FA4           00066         __CONFIG _CONFIG1,_FOSC_INTOSC & _WDTE_OFF & _MCLRE_OFF & _IESO_OFF
+                      00067 ;
+                      00068 ;
+                      00069 ; INTOSC oscillator: I/O function on CLKIN pin
+                      00070 ; WDT disabled
+                      00071 ; PWRT disabled
+                      00072 ; MCLR/VPP pin function is digital input
+                      00073 ; Program memory code protection is disabled
+                      00074 ; Data memory code protection is disabled
+                      00075 ; Brown-out Reset enabled
+                      00076 ; CLKOUT function is disabled. I/O or oscillator function on the CLKOUT pin
+                      00077 ; Internal/External Switchover mode is disabled
+                      00078 ; Fail-Safe Clock Monitor is enabled
+                      00079 ;
+8008   1FFF           00080         __CONFIG _CONFIG2,_WRT_OFF & _PLLEN_ON & _LVP_OFF
+                      00081 ;
+                      00082 ; Write protection off
+                      00083 ; 4x PLL Enabled
+                      00084 ; Stack Overflow or Underflow will cause a Reset
+                      00085 ; Brown-out Reset Voltage (Vbor), low trip point selected.
+                      00086 ; Low-voltage programming enabled
+                      00087 ;
+                      00088 ; '__CONFIG' directive is used to embed configuration data within .asm file.
+                      00089 ; The lables following the directive are located in the respective .inc file.
+                      00090 ; See respective data sheet for additional information on configuration word.
+                      00091 ;
+  0000                00092         constant        oldCode=0
+  0000                00093         constant        useRS232=0
+  0000                00094         constant        UseEEParams=0
+                      00095 ;
+                      00096 ;
+                      00097 #Define _C      STATUS,C
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00098 #Define _Z      STATUS,Z
+                      00099 ;
+                      00100 ;====================================================================================================
+                      00103         list
+                      00104 ;
+                      00105 ;    Port A bits
+  000000E0            00106 PortADDRBits    EQU     b'11100000'
+  00000010            00107 PortAValue      EQU     b'00010000'
+  00000000            00108 ANSELA_Val      EQU     b'00000000'     ;All Digital
+                      00109 ;
+                      00110 #Define OUT_A0  LATA,0  ;Output A0 (Digital Output)
+                      00111 #Define OUT_A1  LATA,1  ;Output A1 (Digital Output)
+                      00112 #Define OUT_A2  LATA,2  ;Output A2 (Digital Output)
+                      00113 #Define OUT_A3  LATA,3  ;Output A3 (Digital Output)
+                      00114 #Define OUT_Enable      LATA,4  ;Output Enable (Active Low Output)
+                      00115 #Define RA5_In  PORTA,5 ;VPP/MCLR*
+                      00116 #Define In_Enable       PORTA,6 ;Input Enable (Active Low Input)
+                      00117 #Define RA7_In  PORTA,7 ;Sys LED D2 System LED
+  00000007            00118 SysLED_Bit      EQU     7       ;Sys LED (Active Low Output)
+                      00119 #Define SysLED_Tris     TRISA,SysLED_Bit        ;Sys LED (Active Low Output)
+                      00120 ;
+                      00121 ;
+                      00122 ;    Port B bits
+  000000FF            00123 PortBDDRBits    EQU     b'11111111'     ;All Inputs
+  00000004            00124 PortBValue      EQU     b'00000100'
+  00000000            00125 ANSELB_Val      EQU     b'00000000'     ; All Digital
+                      00126 ;
+                      00127 #Define IN_A0   PORTB,0 ;Input A0 (Active Low Input)
+                      00128 #Define IN_A1   PORTB,1 ;Input A1 (Active Low Input)
+                      00129 #Define Active_LED      PORTB,2 ;Active LED (Active High Output)
+                      00130 #Define IN_A2   PORTB,3 ;Input A2 (Active Low Input)
+                      00131 #Define IN_A3   PORTB,4 ;Input A3 (Active Low Input)
+                      00132 #Define Start_Btn       PORTB,5 ;Start Button (Active Low Input)
+                      00133 #Define RB6_In  PORTB,6 ;ICSPCLK
+                      00134 #Define RB7_In  PORTB,7 ;ICSPDAT
+                      00135 ;
+  00000002            00136 LED1_Bit        EQU     2       ;LED1 (Active Low Output)
+                      00137 #Define LED1_Tris       TRISB,LED1_Bit  ;LED1 (Active Low Output)
+                      00138 #Define LED1_Lat        LATB,LED1_Bit   ;LED1 (Active Low Output)
+                      00139 ;
+                      00140 ;
+                      00141 ;========================================================================================
+                      00142 ;========================================================================================
+                      00143 ;
+                      00144 ;Constants
+  000000FF            00145 All_In  EQU     0xFF
+  00000000            00146 All_Out EQU     0x00
+                      00147 ;
+                      00148 ;OSCCON_Value   EQU     b'01110010'     ; 8 MHz
+  000000F0            00149 OSCCON_Value    EQU     b'11110000'     ;32MHz
+                      00150 ;
+                      00151 ;T2CON_Value    EQU     b'01001110'     ;T2 On, /16 pre, /10 post
+  0000004F            00152 T2CON_Value     EQU     b'01001111'     ;T2 On, /64 pre, /10 post
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE  4
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+  0000007D            00153 PR2_Value       EQU     .125
+                      00154 ;
+  00000064            00155 LEDTIME EQU     d'100'  ;1.00 seconds
+  0000000A            00156 LEDErrorTime    EQU     d'10'
+  00000014            00157 LEDFastTime     EQU     d'20'
+                      00158 ;
+                      00159 ;
+                      00160 ;TXSTA_Value    EQU     b'00100000'     ;8 bit, TX enabled, Async, low speed
+  00000024            00161 TXSTA_Value     EQU     b'00100100'     ;8 bit, TX enabled, Async, high speed
+  00000090            00162 RCSTA_Value     EQU     b'10010000'     ;RX enabled, 8 bit, Continious receive
+  00000008            00163 BAUDCON_Value   EQU     b'00001000'     ;BRG16=1
+                      00164 ; 8MHz clock low speed (BRGH=0,BRG16=1)
+                      00165 ;Baud_300       EQU     d'1666' ;0.299, -0.02%
+                      00166 ;Baud_1200      EQU     d'416'  ;1.199, -0.08%
+                      00167 ;Baud_2400      EQU     d'207'  ;2.404, +0.16%
+                      00168 ;Baud_9600      EQU     d'51'   ;9.615, +0.16%
+                      00169 ; 32MHz clock low speed (BRGH=1,BRG16=1)
+  0000682A            00170 Baud_300        EQU     .26666  ;300, 0.00%
+  00001A0A            00171 Baud_1200       EQU     .6666   ;1200, 0.00%
+  00000D04            00172 Baud_2400       EQU     .3332   ;2400, +0.01%
+  00000340            00173 Baud_9600       EQU     .832    ;9604, +0.04%
+  000001A0            00174 Baud_19200      EQU     .416    ;19.18k, -0.08%
+  000000CF            00175 Baud_38400      EQU     .207    ;38.46k, +0.16%
+  0000008A            00176 Baud_57600      EQU     .138    ;57.55k, -0.08%
+  000000CF            00177 BaudRate        EQU     Baud_38400
+                      00178 ;
+                      00179 ;
+  0000000A            00180 DebounceTime    EQU     .10
+  00000004            00181 kMaxMode        EQU     .4
+                      00182 ;
+                      00183 ;================================================================================================
+                      00184 ;***** VARIABLE DEFINITIONS
+                      00185 ; there are 256 bytes of ram, Bank0 0x20..0x7F, Bank1 0xA0..0xEF, Bank2 0x120..0x16F
+                      00186 ; there are 256 bytes of EEPROM starting at 0x00 the EEPROM is not mapped into memory but
+                      00187 ;  accessed through the EEADR and EEDATA registers
+                      00188 ;================================================================================================
+                      00189 ;  Bank0 Ram 020h-06Fh 80 Bytes
+                      00190 ;
+                      00191         cblock  0x20
+                      00192 ;
+  00000020            00193         SysLED_Time             ;sys LED time
+  00000021            00194         SysLEDCount             ;sys LED Timer tick count
+                      00195 ;
+  00000022            00196         LED1_Blinks             ;0=off,1,2,3
+  00000023            00197         LED1_Time               ;1=On, 10,20,100 Blink time
+  00000024            00198         LED1_BlinkCount         ;LED1_Blinks..0
+  00000025            00199         LED1_Count              ;tick count
+                      00200 ;
+  00000026            00201         EEAddrTemp              ;EEProm address to read or write
+  00000027            00202         EEDataTemp              ;Data to be writen to EEProm
+                      00203 ;
+                      00204 ;
+  00000028            00205         Timer1Lo                ;1st 16 bit timer
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE  5
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+  00000029            00206         Timer1Hi                ; 50 mS RX timeiout
+  0000002A            00207         Timer2Lo                ;2nd 16 bit timer
+  0000002B            00208         Timer2Hi                ; 2s Input timer
+  0000002C            00209         Timer3Lo                ;3rd 16 bit timer
+  0000002D            00210         Timer3Hi                ; GP wait timer
+  0000002E            00211         Timer4Lo                ;4th 16 bit timer
+  0000002F            00212         Timer4Hi                ; debounce timer
+                      00213 ;
+  00000030            00214         TXByte          ;Next byte to send
+  00000031            00215         RXByte          ;Last byte received
+  00000032            00216         SerFlags
+                      00217 ;
+                      00218 ;
+  00000033            00219         CurrentInput            ;Value of sensors, 0..15, Bit 7 = In enable
+  00000034            00220         CurrentOutput           ;Current output 0..15, bit 7 = enable
+  00000035            00221         SelectedOutput          ;Commanded output 0..15, bit 7 = enable
+                      00222 ;
+  00000036            00223         SysFlags
+                      00224 ;
+                      00225         endc
+                      00226 ;--------------------------------------------------------------
+                      00227 ;
+                      00228 ;---SerFlags bits---
+                      00229 #Define DataReceivedFlag        SerFlags,1
+                      00230 #Define DataSentFlag    SerFlags,2
+                      00231 ;
+                      00232 ;
+                      00233 ;
+                      00234 #Define OutputActive    SysFlags,0
+                      00235 #Define InEquOut        SysFlags,1
+                      00236 #Define BtnPress        SysFlags,2
+                      00237 #Define ClearOutsFlag   SysFlags,3
+                      00238 #Define InputError      SysFlags,4
+                      00239 ;
+                      00240 ;================================================================================================
+                      00241 ;  Bank1 Ram 0A0h-0EFh 80 Bytes
+                      00242 ;
+                      00243 ;================================================================================================
+                      00244 ;  Bank2 Ram 120h-16Fh 80 Bytes
+                      00245 ;
+                      00246 #Define Ser_Buff_Bank   2
+                      00247 ;
+                      00248         cblock  0x120
+  00000120            00249         Ser_In_Bytes            ;Bytes in Ser_In_Buff
+  00000121            00250         Ser_Out_Bytes           ;Bytes in Ser_Out_Buff
+  00000122            00251         Ser_In_InPtr
+  00000123            00252         Ser_In_OutPtr
+  00000124            00253         Ser_Out_InPtr
+  00000125            00254         Ser_Out_OutPtr
+  00000126            00255         Ser_In_Buff:20
+  00000146            00256         Ser_Out_Buff:20
+                      00257         endc
+                      00258 ;
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE  6
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00259 ;================================================================================================
+                      00260 ;  Bank3 Ram 1A0h-1EFh 80 Bytes
+                      00261 ;=========================================================================================
+                      00262 ;  Bank5 Ram 2A0h-2EFh 80 Bytes
+                      00263 ;=======================================================================================================
+                      00264 ;  Common Ram 70-7F same for all banks
+                      00265 ;      except for ISR_W_Temp these are used for paramiter passing and temp vars
+                      00266 ;=======================================================================================================
+                      00267 ;
+                      00268         cblock  0x70
+  00000070            00269         Param70
+  00000071            00270         Param71
+  00000072            00271         Param72
+  00000073            00272         Param73
+  00000074            00273         Param74
+  00000075            00274         Param75
+  00000076            00275         Param76
+  00000077            00276         Param77
+  00000078            00277         Param78
+  00000079            00278         Param79
+  0000007A            00279         Param7A
+  0000007B            00280         Param7B
+  0000007C            00281         Param7C
+  0000007D            00282         Param7D
+  0000007E            00283         Param7E
+  0000007F            00284         Param7F
+                      00285         endc
+                      00286 ;
+                      00287 ;=========================================================================================
+                      00288 ;Conditions
+  00000080            00289 HasISR  EQU     0x80    ;used to enable interupts 0x80=true 0x00=false
+                      00290 ;
+                      00291 ;=========================================================================================
+                      00292 ;==============================================================================================
+                      00293 ; ID Locations
+8000   0001 0000 000D 00294         __idlocs        0x10d4
+       0004 
+                      00295 ;
+                      00296 ;==============================================================================================
+                      00297 ; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
+                      00298 ;
+                      00299 ; default values
+                      00300         ORG     0xF000
+F000   0000           00301         de      0x00    ;nvSysFlags
+                      00302 ;
+                      00303         cblock  0x0000
+  00000000            00304         nvSysFlags
+                      00305         endc
+                      00306 ;
+                      00307 #Define nvFirstParamByte        nvSysFlags
+                      00308 #Define nvLastParamByte nvSysFlags
+                      00309 ;
+                      00310 ;
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE  7
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00311 ;==============================================================================================
+                      00312 ;============================================================================================
+                      00313 ;
+                      00314 ;
+                      00315         ORG     0x000   ; processor reset vector
+0000   0183           00316         CLRF    STATUS
+0001   018A           00317         CLRF    PCLATH
+0002   2???           00318         goto    start   ; go to beginning of program
+                      00319 ;
+                      00320 ;===============================================================================================
+                      00321 ; Interupt Service Routine
+                      00322 ;
+                      00323 ; we loop through the interupt service routing every 0.01 seconds
+                      00324 ;
+                      00325 ;
+                      00326         ORG     0x004   ; interrupt vector location
+0004   018A           00327         CLRF    PCLATH
+0005   0188           00328         CLRF    BSR     ; bank0
+                      00329 ;
+                      00330 ;
+0006   1C91           00331         BTFSS   PIR1,TMR2IF
+0007   2???           00332         goto    SystemTick_end
+                      00333 ;
+0008   1091           00334         BCF     PIR1,TMR2IF     ; reset interupt flag bit
+                      00335 ;------------------
+                      00336 ; These routines run 100 times per second
+                      00337 ;
+                      00338 ;------------------
+                      00339 ;Decrement timers until they are zero
+                      00340 ;
+0009   2???           00341         call    DecTimer1       ;if timer 1 is not zero decrement
+000A   2???           00342         call    DecTimer2
+000B   2???           00343         call    DecTimer3
+000C   2???           00344         call    DecTimer4
+                      00345 ;
+                      00346 ;-----------------------------------------------------------------
+                      00347 ; blink LEDs
+                      00348 ;
+                      00349 ; All LEDs off
+000D   0021           00350         movlb   0x01    ;bank 1
+000E   178C           00351         bsf     SysLED_Tris
+000F   150D           00352         bsf     LED1_Tris
+                      00353 ;
+                      00354 ;
+                      00355 ; Sys LED time
+0010   0020           00356         movlb   0x00    ;bank 0
+0011   0BA1           00357         DECFSZ  SysLEDCount,F   ;Is it time?
+0012   3???           00358         bra     SystemBlink_end ; No, not yet
+                      00359 ;
+0013   0820           00360         MOVF    SysLED_Time,W
+0014   00A1           00361         MOVWF   SysLEDCount
+0015   0021           00362         movlb   0x01    ;bank 1
+0016   138C           00363         bcf     SysLED_Tris
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE  8
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0017                  00364 SystemBlink_end:
+                      00365 ; Flash LEDs
+                      00366 ; Get Button Value
+0017   0020           00367         movlb   0x00    ;bank 0
+                      00368 ;
+0018   08A2           00369         movf    LED1_Blinks,F
+0019   1D03           00370         SKPZ            ;LED1 active?
+001A   3???           00371         bra     LED1_Blinking   ; Yes
+001B   01A4           00372         clrf    LED1_BlinkCount
+001C   01A5           00373         clrf    LED1_Count
+001D   3???           00374         bra     LED1_Blink_end
+                      00375 ;
+001E   0825           00376 LED1_Blinking   movf    LED1_Count,W
+001F   0424           00377         iorwf   LED1_BlinkCount,W
+0020   1903           00378         SKPNZ           ;Startup?
+0021   3???           00379         bra     LED1_Start
+                      00380 ;
+0022   0BA5           00381         decfsz  LED1_Count,F    ;Done w/ blink
+0023   3???           00382         bra     LED1_Blink_end  ; no
+                      00383 ;
+0024   08A4           00384         movf    LED1_BlinkCount,F
+0025   1903           00385         SKPNZ           ;Done w/ cycle?
+0026   3???           00386         bra     LED1_Start      ; Yes
+                      00387 ;
+0027   0BA4           00388         decfsz  LED1_BlinkCount,F
+0028   3???           00389         bra     LED1_NextBlink
+0029   0823           00390         movf    LED1_Time,W     ;1 = On, 1..FF blink time
+002A   00A5           00391         movwf   LED1_Count
+002B   3???           00392         bra     LED1_Blink_end
+                      00393 ;
+002C   0822           00394 LED1_Start      movf    LED1_Blinks,W
+002D   00A4           00395         movwf   LED1_BlinkCount
+002E   0823           00396 LED1_NextBlink  movf    LED1_Time,W
+002F   00A5           00397         movwf   LED1_Count
+                      00398 ;
+0030   0021           00399         movlb   0x01
+0031   110D           00400         BCF     LED1_Tris
+0032                  00401 LED1_Blink_end:
+                      00402 ;-------------
+                      00403 ;
+                      00404 ;
+0032                  00405 SystemTick_end:
+0032   0020           00406         movlb   0       ; bank 0
+                      00407 ;
+                      00408 ;==================================================================================
+                      00409         if useRS232
+                      00410 ;-----------------------------------------------------------------------------------------
+                      00411 ;AUSART Serial ISR
+                      00412 ;
+                      00413 IRQ_Ser BTFSS   PIR1,RCIF       ;RX has a byte?
+                      00414         BRA     IRQ_Ser_End
+                      00415         CALL    RX_TheByte
+                      00416 ;
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE  9
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00417 IRQ_Ser_End:
+                      00418         endif
+                      00419 ;-----------------------------------------------------------------------------------------
+0033   0009           00420         retfie          ; return from interrupt
+                      00421 ;
+                      00422 ;
+                      00423 ;=========================================================================================
+                      00424 ;*****************************************************************************************
+                      00425 ;=========================================================================================
+                      00426 ;
+                      00427         include <F1847_Common.inc>
+                      00001 ;=========================================================================================
+                      00002 ; Commonly used routines PIC16F1847 version
+                      00003 ;
+                      00004 ;    Filename:      F1847 Common.inc
+                      00005 ;    Date:          7/12/2019
+                      00006 ;    File Version:  1.0.3
+                      00007 ;
+                      00008 ;    Author:        David M. Flynn
+                      00009 ;    Company:       Oxford V.U.E., Inc.
+                      00010 ;    E-Mail:        dflynn@oxfordvue.com
+                      00011 ;    Web Site:      http://www.oxfordvue.com/
+                      00012 ;
+                      00013 ;=========================================================================================
+                      00014 ;    History:
+                      00015 ; 1.0.3 7/12/2019       clrf FSR0H in DecTimer
+                      00016 ; 1.0.2  4/6/2019       Fixes to EERead/EEwrite
+                      00017 ; 1.0.2 1/3/2016        Fixed read and write data EEPROM.
+                      00018 ; 1.0.1 11/21/2015      Updates DecTimer.
+                      00019 ; 1.0   11/16/2013      Updated from F648A Common.inc
+                      00020 ;
+                      00021 ;=========================================================================================
+                      00022 ; Routines:
+                      00023 ;
+                      00024 ; ClearRam      (2+0) Clears all RAM, call once before initializing variables, FSR0
+                      00025 ; CopyToRam     (1+0) copy param memory (EEPROM) to ram, call once, FSR0
+                      00026 ; SaveParams    (1+0) copy ram to param memory (EEPROM), FSR0
+                      00027 ;
+                      00028 ;  Set FSR0H before calling these routines
+                      00029 ; DecTimer4     (0+0) Decrement routine for 16 bit timers, FSR0
+                      00030 ; DecTimer3
+                      00031 ; DecTimer2
+                      00032 ; DecTimer1
+                      00033 ; DecTimer      (0+0) High byte of counter address in W
+                      00034 ;
+                      00035 ; TestT4_Zero   Test for 16 bit timers = zero
+                      00036 ; TestT3_Zero   If Timer is zero return Z flag,1 else Z=0
+                      00037 ; TestT2_Zero
+                      00038 ; TestT1_Zero
+                      00039 ;
+                      00040 ; Delay10uS     (0+0)Delay uS    1 cycle = 1uS, 8Mhz clock version
+                      00041 ; Delay100uS
+                      00042 ; Delay40uS
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 10
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00043 ; DelayWuS
+                      00044 ;
+                      00045 ; EEReadW       (0+0) Read EEPROM address in W
+                      00046 ; EERead        (0+0) Read EEPROM address in EEAddrTemp
+                      00047 ; EEWriteW      (0+0) Write EEPROM address in W, Data in EEDataTemp
+                      00048 ; EEWrite       (0+0) Write EEPROM address in EEAdrTemp, Data in EEDataTemp, FSR0
+                      00049 ;
+                      00050 ;=========================================================================================
+                      00051         ifndef UseEEParams
+                      00052         constant UseEEParams=0
+                      00053         endif
+                      00054 ;=========================================================================================
+                      00055 ; Clears all RAM
+                      00056 ; Entry: none
+                      00057 ; Exit: none
+                      00058 ; RAM used: All
+                      00059 ; Calls:(2+0) ClearRam_L2
+                      00060 ;
+0034   0020           00061 ClearRam        MOVLB   0x00
+0035   305F           00062         MOVLW   0x5F    ;Clear 20h-7Eh, 95 bytes
+0036   00FF           00063         MOVWF   Param7F
+0037   3020           00064         MOVLW   0x20
+0038   0084           00065         MOVWF   FSR0
+0039   0185           00066         CLRF    FSR0H
+003A   2???           00067         CALL    ClearRam_L2
+                      00068 ;
+003B   3050           00069         MOVLW   0x50    ;Clear A0h-EFh, 80 bytes
+003C   00FF           00070         MOVWF   Param7F
+003D   30A0           00071         MOVLW   0xA0
+003E   0084           00072         MOVWF   FSR0
+003F   2???           00073         CALL    ClearRam_L2
+                      00074 ;
+0040   0A85           00075         INCF    FSR0H,F 
+0041   2???           00076         CALL    ClearRam_2      ;Banks 2,3
+0042   0A85           00077         INCF    FSR0H,F 
+0043   2???           00078         CALL    ClearRam_2      ;Banks 4,5
+0044   0A85           00079         INCF    FSR0H,F ;Banks 6,7
+                      00080 ;       
+0045   3050           00081 ClearRam_2      MOVLW   0x50    ;Clear 120h-16Fh, 80 bytes
+0046   00FF           00082         MOVWF   Param7F
+0047   3020           00083         MOVLW   0x20
+0048   0084           00084         MOVWF   FSR0
+0049   2???           00085         CALL    ClearRam_L2
+                      00086 ;
+004A   3050           00087         MOVLW   0x50    ;Clear A0h-EFh, 80 bytes
+004B   00FF           00088         MOVWF   Param7F
+004C   30A0           00089         MOVLW   0xA0
+004D   0084           00090         MOVWF   FSR0
+                      00091 ;
+004E   0180           00092 ClearRam_L2     CLRF    INDF0
+004F   0A84           00093         INCF    FSR0,F
+0050   0BFF           00094         DECFSZ  Param7F,F
+0051   3???           00095         bra     ClearRam_L2
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 11
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0052   0008           00096         RETURN
+                      00097 ;
+                      00098         if UseEEParams
+                      00099 ;==========================================================================
+                      00100 ; copy param memory to ram
+                      00101 ;
+                      00102 CopyToRam       movlb   0       ;bank 0
+                      00103         MOVLW   nvFirstParamByte
+                      00104         MOVWF   EEAddrTemp
+                      00105         MOVLW   low FirstRAMParam
+                      00106         MOVWF   FSR0L
+                      00107         MOVLW   high FirstRAMParam
+                      00108         movwf   FSR0H
+                      00109 CopyToRam_L1    CALL    EERead
+                      00110         movwi   FSR0++
+                      00111         INCF    EEAddrTemp,F
+                      00112         MOVLW   Low LastRAMParam+1
+                      00113         SUBWF   FSR0L,W
+                      00114         SKPZ
+                      00115         BRA     CopyToRam_L1
+                      00116         RETURN
+                      00117 ;
+                      00118 ;===========================================================================
+                      00119 ; copy ram to param memory
+                      00120 ;
+                      00121 SaveParams      movlb   0       ;bank 0
+                      00122         MOVLW   nvFirstParamByte
+                      00123         MOVWF   EEAddrTemp
+                      00124         MOVLW   low FirstRAMParam
+                      00125         MOVWF   FSR0L
+                      00126         MOVLW   high FirstRAMParam
+                      00127         movwf   FSR0H
+                      00128 SaveParams_L1   moviw   FSR0++
+                      00129         MOVWF   EEDataTemp
+                      00130         CALL    EEWrite
+                      00131         INCF    EEAddrTemp,F
+                      00132         MOVLW   LastRAMParam+1  ;last byte
+                      00133         SUBWF   FSR0L,W
+                      00134         SKPZ
+                      00135         BRA     SaveParams_L1
+                      00136         RETURN
+                      00137 ;
+                      00138         endif
+                      00139 ;=====================================================================================================
+                      00140 ;=======================================================================================================
+                            ==
+                      00141 ; Decrement routine for 16 bit timers
+                      00142 ; Set FSR0H before calling these routines.
+                      00143 ;
+0053   302F           00144 DecTimer4       movlw   Timer4Hi
+0054   3???           00145         bra     DecTimer
+0055   302D           00146 DecTimer3       movlw   Timer3Hi
+0056   3???           00147         bra     DecTimer
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 12
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0057   302B           00148 DecTimer2       movlw   Timer2Hi
+0058   3???           00149         bra     DecTimer
+0059   3029           00150 DecTimer1       movlw   Timer1Hi
+                      00151 ;DecTimer
+                      00152 ; entry: FSR=Timer(n)Hi
+005A   0084           00153 DecTimer        MOVWF   FSR0L
+005B   3000           00154         movlw   High Timer4Hi
+005C   0085           00155         movwf   FSR0H
+005D   0013           00156         MOVIW   FSR0--  ;TimerNHi
+005E   0400           00157         IORWF   INDF0,W ;TimerNLo
+005F   1903           00158         SKPNZ
+0060   0008           00159         RETURN
+0061   3001           00160         MOVLW   0x01
+0062   0280           00161         SUBWF   INDF0,F ;TimerNLo
+0063   0A84           00162         INCF    FSR0L,F
+0064   0103           00163         CLRW
+0065   3B80           00164         SUBWFB  INDF0,F ;TimerNHi
+0066   0008           00165         RETURN
+                      00166 ;
+                      00167 ;==============================================================================================
+                      00168 ; Test for 16 bit timers = zero
+                      00169 ;If Timer is zero return Z flag,1 else Z=0
+                      00170 ;
+0067   0020           00171 TestT4_Zero     movlb   0
+0068   082E           00172         movf    Timer4Lo,W
+0069   042F           00173         iorwf   Timer4Hi,W
+006A   0008           00174         return
+                      00175 ;
+006B   0020           00176 TestT3_Zero     movlb   0
+006C   082C           00177         movf    Timer3Lo,W
+006D   042D           00178         iorwf   Timer3Hi,W
+006E   0008           00179         return
+                      00180 ;
+006F   0020           00181 TestT2_Zero     movlb   0
+0070   082A           00182         movf    Timer2Lo,W
+0071   042B           00183         iorwf   Timer2Hi,W
+0072   0008           00184         return
+                      00185 ;
+0073   0020           00186 TestT1_Zero     movlb   0
+0074   0828           00187         movf    Timer1Lo,W
+0075   0429           00188         iorwf   Timer1Hi,W
+0076   0008           00189         return  
+                      00190 ;
+                      00191         if oldCode
+                      00192 ;======================================================================================
+                      00193 ;Delay uS    1 cycle = 1uS, 8MHz clock version
+                      00194 ; RAM used: Param77
+                      00195 ; Calls:(0) none
+                      00196 ;
+                      00197 Delay10uS       MOVLW   0x05    ;(2*3+5)/2=10
+                      00198         bra     DelayWuS
+                      00199 Delay100uS      MOVLW   d'65'   ;(28*3+5)/2=100
+                      00200         bra     DelayWuS
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 13
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00201 Delay40uS       MOVLW   d'25'   ;(11*3+5)=40
+                      00202 DelayWuS        MOVWF   Param77
+                      00203 DelayWuS_Loop   DECFSZ  Param77,F
+                      00204         bra     DelayWuS_Loop
+                      00205         RETURN
+                      00206 ;
+                      00207         endif
+                      00208 ;======================================================================================
+                      00209 ;Delay uS    1 cycle = .125uS, 32MHz clock version
+                      00210 ; RAM used: Param77
+                      00211 ; Calls:(0) none
+                      00212 ;
+0077   3005           00213 Delay10uS       MOVLW   0x05    ;(2*3+5)/2=10
+0078   3???           00214         bra     DelayWuS
+0079   3041           00215 Delay100uS      MOVLW   d'65'   ;(28*3+5)/2=100
+007A   3???           00216         bra     DelayWuS
+007B   3019           00217 Delay40uS       MOVLW   d'25'   ;(11*3+5)=40
+007C   00F7           00218 DelayWuS        MOVWF   Param77
+007D   0000           00219 DelayWuS_Loop   nop
+007E   0000           00220         nop
+007F   0BF7           00221         DECFSZ  Param77,F
+0080   3???           00222         bra     DelayWuS_Loop
+0081   0008           00223         RETURN
+                      00224 ;==============================================================================================
+                      00225 ; Read EEPROM
+                      00226 ; entry: EEPROM address to read in W
+                      00227 ;        Bank 0 selected
+                      00228 ; exit: W=EEDATA, Bank 0 selected
+                      00229 ;
+0082   00A6           00230 EEReadW movwf   EEAddrTemp
+                      00231 ;
+                      00232 ;==============================================================================================
+                      00233 ; Read EEPROM
+                      00234 ; entry: EEPROM address to read in EEAddrTemp
+                      00235 ;        Bank 0 selected
+                      00236 ; exit: W=EEDATA, Bank 0 selected
+                      00237 ;
+0083   0826           00238 EERead  movf    EEAddrTemp,W
+0084   0023           00239         MOVLB   3       ;Bank 3
+0085   0091           00240         movwf   EEADRL  ;Address to read
+0086   1315           00241         bcf     EECON1,CFGS
+0087   1395           00242         bcf     EECON1,EEPGD
+0088   1415           00243         bsf     EECON1,RD
+0089   0813           00244         movf    EEDATL,W        ;W=EEDAT
+008A   0020           00245         MOVLB   0x00    ;Bank 0
+008B   0008           00246         return
+                      00247 ;
+                      00248 ;==============================================================================================
+                      00249 ; Write EEPROM
+                      00250 ; entry: EEPROM address to write in W
+                      00251 ;        EEPROM data to write in EEDataTemp
+                      00252 ;        Bank 0 selected
+                      00253 ; exit: Bank 0 selected
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 14
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00254 ;
+008C   00A6           00255 EEWriteW        movwf   EEAddrTemp
+                      00256 ;
+                      00257 ;==============================================================================================
+                      00258 ; Write EEPROM
+                      00259 ; entry: EEPROM address to write in EEAdrTemp
+                      00260 ;        EEPROM data to write in EEDataTemp
+                      00261 ;        Bank 0 selected
+                      00262 ; exit: Bank 0 selected
+                      00263 ;
+008D   0826           00264 EEWrite MOVF    EEAddrTemp,W
+008E   0023           00265         MOVLB   0x03    ;Bank 3
+008F   0091           00266         movwf   EEADRL  ;Address to write
+0090   0020           00267         movlb   0       ;bank 0
+0091   0827           00268         movf    EEDataTemp,W
+0092   0023           00269         MOVLB   3       ;Bank 3
+0093   0093           00270         movwf   EEDATL
+0094   1315           00271         bcf     EECON1,CFGS
+0095   1395           00272         bcf     EECON1,EEPGD
+0096   1515           00273         bsf     EECON1,WREN
+0097   138B           00274 EEWrite_L1      bcf     INTCON,GIE      ;Disale Ints
+0098   1B8B           00275         btfsc   INTCON,GIE
+0099   3???           00276         bra     EEWrite_L1
+                      00277 ;begin required sequence
+009A   3055           00278         movlw   0x55
+009B   0096           00279         movwf   EECON2  ;write 55
+009C   30AA           00280         movlw   0xAA
+009D   0096           00281         movwf   EECON2  ;write AA
+009E   1495           00282         bsf     EECON1,WR       ;Begin Write
+                      00283 ;end required sequence
+009F   178B           00284         bsf     INTCON,GIE
+00A0   1895           00285 EEWrite_L2      btfsc   EECON1,WR       
+00A1   3???           00286         bra     EEWrite_L2
+00A2   1115           00287         bcf     EECON1,WREN     
+00A3   0020           00288         MOVLB   0x00    ;Bank 0
+00A4   0008           00289         return
+                      00290 ;
+                      00291 ;       
+                      00292 ;=========================================================================================
+                      00293 ;=========================================================================================
+                      00294 ;
+                      00295 ;
+                      00296 ;
+                      00428 ;
+                      00429 ;=========================================================================================
+                      00430 ;
+00A5   2???           00431 start   call    InitializeIO
+                      00432 ;
+                      00433 ;
+                      00434 ;=========================================================================================
+                      00435 ;*****************************************************************************************
+                      00436 ;=========================================================================================
+00A6   0064           00437 MainLoop        CLRWDT
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 15
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00438 ;
+                      00439         if useRS232
+                      00440         call    GetSerInBytes
+                      00441         SKPZ            ;Any data?
+                      00442         CALL    RS232_Parse     ; yes
+                      00443 ;
+                      00444         movlb   1
+                      00445         btfss   RXDataIsNew
+                      00446         bra     ML_1
+                      00447         mCall0To1       HandleRXData
+                      00448 ML_1:
+                      00449         endif
+                      00450 ;
+                      00451 ;
+                      00452 ;---------------------
+                      00453 ; Read the button and set the output
+00A7   2???           00454         call    HandleButton    ;ClearOutsFlag, BtnPress
+00A8   1D36           00455         btfss   BtnPress        ;Has the button been pressed?
+00A9   3???           00456         bra     ML_Btn_Inactive ; No
+00AA   1136           00457         bcf     BtnPress
+00AB   2???           00458         call    ReadInput
+00AC   1FB3           00459         btfss   CurrentInput,7  ;Valid input?
+00AD   3???           00460         bra     ML_Btn_Error    ; No
+00AE   1236           00461         bcf     InputError
+00AF   0833           00462         movf    CurrentInput,W
+00B0   00B5           00463         movwf   SelectedOutput
+00B1   2???           00464         call    SetOutput
+00B2   3???           00465         bra     ML_Btn_End
+                      00466 ;
+00B3   1DB6           00467 ML_Btn_Inactive btfss   ClearOutsFlag
+00B4   3???           00468         bra     ML_Btn_End
+00B5   11B6           00469         bcf     ClearOutsFlag
+00B6   13B5           00470         bcf     SelectedOutput,7        ;disable outputs
+00B7   2???           00471         call    SetOutput
+00B8   3???           00472         bra     ML_Btn_End
+                      00473 ;
+00B9   1636           00474 ML_Btn_Error    bsf     InputError
+00BA   300A           00475         movlw   LEDErrorTime
+00BB   00A3           00476         movwf   LED1_Time
+00BC   3001           00477         movlw   0x01
+00BD   00A2           00478         movwf   LED1_Blinks
+                      00479 ;
+00BE                  00480 ML_Btn_End:
+                      00481 ;---------------------
+                      00482 ; if not an error
+                      00483 ;   if output is active
+                      00484 ;     if in = out light LED
+                      00485 ;     else fast blink LED
+00BE   1A36           00486         btfsc   InputError
+00BF   3???           00487         bra     ML_LED_End
+00C0   1FB4           00488         btfss   CurrentOutput,7
+00C1   3???           00489         bra     ML_LED_Off
+00C2   2???           00490         call    ReadInput
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 16
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+00C3   1FB3           00491         btfss   CurrentInput,7  ;Valid input?
+00C4   3???           00492         bra     ML_LED_Fast     ; No
+                      00493 ;
+00C5   0834           00494         movf    CurrentOutput,W
+00C6   0233           00495         subwf   CurrentInput,W
+00C7   1D03           00496         SKPZ            ;In = Out?
+00C8   3???           00497         bra     ML_LED_Fast     ; No
+                      00498 ; Set LED ON
+00C9   3001           00499         movlw   0x01
+00CA   00A2           00500         movwf   LED1_Blinks
+00CB   3001           00501         movlw   0x01
+00CC   00A3           00502         movwf   LED1_Time
+00CD   3???           00503         bra     ML_LED_End
+                      00504 ;
+00CE   3014           00505 ML_LED_Fast     movlw   LEDFastTime
+00CF   00A3           00506         movwf   LED1_Time
+00D0   3001           00507         movlw   0x01
+00D1   00A2           00508         movwf   LED1_Blinks
+00D2   3???           00509         bra     ML_LED_End
+                      00510 ;
+00D3   01A2           00511 ML_LED_Off      clrf    LED1_Blinks
+                      00512 ;
+00D4                  00513 ML_LED_End:
+                      00514 ;
+                      00515 ;---------------------
+                      00516         if useRS232
+                      00517 ;---------------------
+                      00518 ; Handle Serial Communications
+                      00519         BTFSC   PIR1,TXIF       ;TX done?
+                      00520         CALL    TX_TheByte      ; Yes
+                      00521 ;
+                      00522 ; move any serial data received into the 32 byte input buffer
+                      00523         BTFSS   DataReceivedFlag
+                      00524         BRA     ML_Ser_Out
+                      00525         MOVF    RXByte,W
+                      00526         BCF     DataReceivedFlag
+                      00527         CALL    StoreSerIn
+                      00528 ;
+                      00529 ; If the serial data has been sent and there are bytes in the buffer, send the next byte
+                      00530 ;
+                      00531 ML_Ser_Out      BTFSS   DataSentFlag
+                      00532         BRA     ML_Ser_End
+                      00533         CALL    GetSerOut
+                      00534         BTFSS   Param78,0
+                      00535         BRA     ML_Ser_End
+                      00536         MOVWF   TXByte
+                      00537         BCF     DataSentFlag
+                      00538 ML_Ser_End:
+                      00539         endif
+                      00540 ;----------------------
+                      00541 ;
+                      00542 ;
+00D4   2???           00543         goto    MainLoop
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 17
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00544 ;=========================================================================================
+                      00545 ;*****************************************************************************************
+                      00546 ;=========================================================================================
+                      00547 ;
+                      00548 ;=========================================================================================      
+                      00549 ;=========================================================================================
+                      00550 ;DebounceTime
+                      00551 ;Timer4Lo, Timer2Lo
+                      00552 ;
+                      00553 ; Entry: none
+                      00554 ; Exit: ClearOutsFlag, BtnPress
+                      00555 ; RAM Used: none
+                      00556 ; Calls: (0) none
+                      00557 ;
+00D5   0020           00558 HandleButton    movlb   0x00    ;bank 0
+                      00559 ;
+00D6   08AE           00560         movf    Timer4Lo,F
+00D7   1903           00561         SKPNZ           ;Debounced?
+00D8   3???           00562         bra     HdlBtn_1        ; Yes
+                      00563 ;
+00D9   1E8D           00564         btfss   Start_Btn       ;Is Btn still active?
+00DA   3???           00565         bra     HdlBtn_DB       ; Yes
+                      00566 ;
+00DB   0008           00567         return
+                      00568 ;
+                      00569 ; we are de-bounced
+00DC   1A8D           00570 HdlBtn_1        btfsc   Start_Btn       ;Is Btn active?
+00DD   0008           00571         return          ; No
+00DE   1536           00572         bsf     BtnPress
+                      00573 ;
+00DF   30C8           00574         movlw   .200    ;2s clear outputs timer
+00E0   00AA           00575         movwf   Timer2Lo
+                      00576 ;
+00E1   300A           00577 HdlBtn_DB       movlw   DebounceTime
+00E2   00AE           00578         movwf   Timer4Lo
+                      00579 ;
+00E3   08AA           00580         movf    Timer2Lo,F
+00E4   1903           00581         SKPNZ           ;Active for >2s?
+00E5   15B6           00582         bsf     ClearOutsFlag   ; Yes
+00E6   0008           00583         return
+                      00584 ;
+                      00585 ;
+                      00586 ;=========================================================================================
+                      00587 ; Read Input
+                      00588 ;
+                      00589 ; Entry: none
+                      00590 ; Exit: CurrentInput
+                      00591 ; RAM Used:
+                      00592 ; Calls:
+                      00593 ;
+00E7   0020           00594 ReadInput       movlb   0       ;bank 0
+00E8   01B3           00595         clrf    CurrentInput
+00E9   1B0C           00596         btfsc   In_Enable
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 18
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+00EA   3???           00597         bra     ReadInput_End
+                      00598 ;
+00EB   17B3           00599         bsf     CurrentInput,7
+00EC   1C0D           00600         btfss   IN_A0
+00ED   1433           00601         bsf     CurrentInput,0
+00EE   1C8D           00602         btfss   IN_A1
+00EF   14B3           00603         bsf     CurrentInput,1
+00F0   1D8D           00604         btfss   IN_A2
+00F1   1533           00605         bsf     CurrentInput,2
+00F2   1E0D           00606         btfss   IN_A3
+00F3   15B3           00607         bsf     CurrentInput,3
+                      00608 ;
+00F4                  00609 ReadInput_End:
+00F4   0008           00610         return
+                      00611 ;
+                      00612 ;=========================================================================================
+                      00613 ; Set Output
+                      00614 ;
+                      00615 ; Entry: SelectedOutput
+                      00616 ; Exit: OutputActive, CurrentOutput
+                      00617 ; RAM Used: Param78, Param79
+                      00618 ; Calls: (0) none
+00F5   0020           00619 SetOutput       movlb   0       ;bank 0
+00F6   0835           00620         movf    SelectedOutput,W
+00F7   00F8           00621         movwf   Param78
+00F8   0234           00622         subwf   CurrentOutput,W
+00F9   1903           00623         SKPNZ
+00FA   3???           00624         bra     SetOutput_Done
+                      00625 ;
+00FB   0022           00626         movlb   2       ;bank 2
+00FC   160C           00627         bsf     OUT_Enable      ;disable
+00FD   0878           00628         movf    Param78,W
+00FE   390F           00629         andlw   0x0F    ;keep address bits
+00FF   00F9           00630         movwf   Param79
+0100   080C           00631         movf    LATA,W
+0101   39F0           00632         andlw   0xF0
+0102   0479           00633         iorwf   Param79,W
+0103   008C           00634         movwf   LATA
+0104   1BF8           00635         btfsc   Param78,7
+0105   120C           00636         bcf     OUT_Enable      ;enable drive
+                      00637 ;
+0106   0020           00638 SetOutput_Done  movlb   0       ;bank 0
+0107   0835           00639         movf    SelectedOutput,W
+0108   00B4           00640         movwf   CurrentOutput
+0109   1036           00641         bcf     OutputActive
+010A   1BB4           00642         btfsc   CurrentOutput,7
+010B   1436           00643         bsf     OutputActive
+010C   0008           00644         return
+                      00645 ;=========================================================================================
+                      00646 ; call once
+                      00647 ;=========================================================================================
+                      00648 ;
+010D   0021           00649 InitializeIO    MOVLB   0x01    ; select bank 1
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 19
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+010E   1795           00650         bsf     OPTION_REG,NOT_WPUEN    ; disable pullups on port B
+010F   1295           00651         bcf     OPTION_REG,TMR0CS       ; TMR0 clock Fosc/4
+0110   1195           00652         bcf     OPTION_REG,PSA  ; prescaler assigned to TMR0
+0111   1415           00653         bsf     OPTION_REG,PS0  ;111 8mhz/4/256=7812.5hz=128uS/Ct=0.032768S/ISR
+0112   1495           00654         bsf     OPTION_REG,PS1  ;101 8mhz/4/64=31250hz=32uS/Ct=0.008192S/ISR
+0113   1515           00655         bsf     OPTION_REG,PS2
+                      00656 ;
+0114   0021           00657         MOVLB   0x01    ; bank 1
+0115   30F0           00658         MOVLW   OSCCON_Value
+0116   0099           00659         MOVWF   OSCCON
+0117   3017           00660         movlw   b'00010111'     ; WDT prescaler 1:65536 period is 2 sec (RESET value)
+0118   0097           00661         movwf   WDTCON
+                      00662 ;
+0119   0023           00663         MOVLB   0x03    ; bank 3
+011A   3000           00664         movlw   ANSELA_Val
+011B   008C           00665         movwf   ANSELA
+011C   3000           00666         movlw   ANSELB_Val
+011D   008D           00667         movwf   ANSELB
+                      00668 ;
+                      00669 ;Setup T2 for 100/s
+011E   0020           00670         movlb   0       ; bank 0
+011F   304F           00671         MOVLW   T2CON_Value
+0120   009C           00672         MOVWF   T2CON
+0121   307D           00673         MOVLW   PR2_Value
+0122   009B           00674         MOVWF   PR2
+0123   0021           00675         movlb   1       ; bank 1
+0124   1491           00676         bsf     PIE1,TMR2IE     ; enable Timer 2 interupt
+                      00677 ;
+                      00678 ;
+                      00679 ; clear memory to zero
+0125   0020           00680         movlb   0       ; bank 0
+0126   2???           00681         CALL    ClearRam
+0127   0064           00682         CLRWDT
+                      00683 ; not used      CALL    CopyToRam
+                      00684 ;
+                      00685 ;
+0128   0020           00686         MOVLB   0x00    ;Bank 0
+                      00687 ; setup data ports
+0129   3004           00688         movlw   PortBValue
+012A   008D           00689         movwf   PORTB   ;init port B
+012B   3010           00690         movlw   PortAValue
+012C   008C           00691         movwf   PORTA
+012D   0021           00692         MOVLB   0x01    ; bank 1
+012E   30E0           00693         movlw   PortADDRBits
+012F   008C           00694         movwf   TRISA
+0130   30FF           00695         movlw   PortBDDRBits    ;setup for programer
+0131   008D           00696         movwf   TRISB
+                      00697 ;
+                      00698         if useRS232
+                      00699 ; setup serial I/O
+                      00700         BANKSEL BAUDCON ; bank 3
+                      00701         movlw   BAUDCON_Value
+                      00702         movwf   BAUDCON
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 20
+
+F648A Macros
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00703         MOVLW   low BaudRate
+                      00704         MOVWF   SPBRGL
+                      00705         MOVLW   high BaudRate
+                      00706         MOVWF   SPBRGH
+                      00707         MOVLW   TXSTA_Value
+                      00708         MOVWF   TXSTA
+                      00709         MOVLW   RCSTA_Value
+                      00710         MOVWF   RCSTA
+                      00711         movlb   0x01    ; bank 1
+                      00712         BSF     PIE1,RCIE       ; Serial Receive interupt
+                      00713         movlb   0x00    ; bank 0
+                      00714 ;
+                      00715         endif
+                      00716 ;
+0132   0064           00717         CLRWDT
+                      00718 ;-----------------------
+                      00719 ;
+0133   0020           00720         MOVLB   0x00    ;bank 0
+0134   3064           00721         movlw   .100    ;Set the debounce timer to
+0135   00AE           00722         movwf   Timer4Lo        ; ignore Btn for 1st second.
+                      00723 ;
+0136   3064           00724         MOVLW   LEDTIME
+0137   00A0           00725         MOVWF   SysLED_Time
+0138   3001           00726         movlw   0x01
+0139   00A1           00727         movwf   SysLEDCount     ;start blinking right away
+                      00728 ;
+013A   170B           00729         bsf     INTCON,PEIE     ; enable periferal interupts
+013B   178B           00730         bsf     INTCON,GIE      ; enable interupts
+                      00731 ;
+013C   0008           00732         return
+                      00733 ;
+                      00734 ;=========================================================================================
+                      00735 ;=========================================================================================
+                      00736 ;
+                      00737 ;
+                      00738 ;
+2FA4 1FFF             00739         END
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 21
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+ABDEN                             00000000
+ABDOVF                            00000007
+ACKDT                             00000005
+ACKEN                             00000004
+ACKSTAT                           00000006
+ACKTIM                            00000007
+ADCON0                            0000009D
+ADCON1                            0000009E
+ADCS0                             00000004
+ADCS1                             00000005
+ADCS2                             00000006
+ADDEN                             00000003
+ADFM                              00000007
+ADFVR0                            00000000
+ADFVR1                            00000001
+ADGO                              00000001
+ADIE                              00000006
+ADIF                              00000006
+ADNREF                            00000002
+ADON                              00000000
+ADPREF0                           00000000
+ADPREF1                           00000001
+ADRES                             0000009B
+ADRESH                            0000009C
+ADRESL                            0000009B
+AHEN                              00000001
+ANSA0                             00000000
+ANSA1                             00000001
+ANSA2                             00000002
+ANSA3                             00000003
+ANSA4                             00000004
+ANSB1                             00000001
+ANSB2                             00000002
+ANSB3                             00000003
+ANSB4                             00000004
+ANSB5                             00000005
+ANSB6                             00000006
+ANSB7                             00000007
+ANSELA                            0000018C
+ANSELA_Val                        00000000
+ANSELB                            0000018D
+ANSELB_Val                        00000000
+APFCON0                           0000011D
+APFCON1                           0000011E
+Active_LED                        PORTB,2
+All_In                            000000FF
+All_Out                           00000000
+BAUDCON                           0000019F
+BAUDCON_Value                     00000008
+BCL1IE                            00000003
+BCL1IF                            00000003
+BCL2IE                            00000001
+BCL2IF                            00000001
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 22
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+BEQ                               
+BF                                00000000
+BMI                               
+BNE                               
+BOEN                              00000004
+BORCON                            00000116
+BORRDY                            00000000
+BPL                               
+BRG16                             00000003
+BRGH                              00000002
+BSR                               00000008
+BSR0                              00000000
+BSR1                              00000001
+BSR2                              00000002
+BSR3                              00000003
+BSR4                              00000004
+BSR_SHAD                          00000FE6
+BaudRate                          000000CF
+Baud_1200                         00001A0A
+Baud_19200                        000001A0
+Baud_2400                         00000D04
+Baud_300                          0000682A
+Baud_38400                        000000CF
+Baud_57600                        0000008A
+Baud_9600                         00000340
+BtnPress                          SysFlags,2
+C                                 00000000
+C1HYS                             00000001
+C1IE                              00000005
+C1IF                              00000005
+C1INTN                            00000006
+C1INTP                            00000007
+C1NCH0                            00000000
+C1NCH1                            00000001
+C1OE                              00000005
+C1ON                              00000007
+C1OUT                             00000006
+C1PCH0                            00000004
+C1PCH1                            00000005
+C1POL                             00000004
+C1SP                              00000002
+C1SYNC                            00000000
+C1TSEL0                           00000000
+C1TSEL1                           00000001
+C2HYS                             00000001
+C2IE                              00000006
+C2IF                              00000006
+C2INTN                            00000006
+C2INTP                            00000007
+C2NCH0                            00000000
+C2NCH1                            00000001
+C2OE                              00000005
+C2ON                              00000007
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 23
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+C2OUT                             00000006
+C2PCH0                            00000004
+C2PCH1                            00000005
+C2POL                             00000004
+C2SP                              00000002
+C2SYNC                            00000000
+C2TSEL0                           00000002
+C2TSEL1                           00000003
+C3TSEL0                           00000004
+C3TSEL1                           00000005
+C4TSEL0                           00000006
+C4TSEL1                           00000007
+CCP1AS                            00000295
+CCP1AS0                           00000004
+CCP1AS1                           00000005
+CCP1AS2                           00000006
+CCP1ASE                           00000007
+CCP1CON                           00000293
+CCP1IE                            00000002
+CCP1IF                            00000002
+CCP1M0                            00000000
+CCP1M1                            00000001
+CCP1M2                            00000002
+CCP1M3                            00000003
+CCP1SEL                           00000000
+CCP2AS                            0000029C
+CCP2AS0                           00000004
+CCP2AS1                           00000005
+CCP2AS2                           00000006
+CCP2ASE                           00000007
+CCP2CON                           0000029A
+CCP2IE                            00000000
+CCP2IF                            00000000
+CCP2M0                            00000000
+CCP2M1                            00000001
+CCP2M2                            00000002
+CCP2M3                            00000003
+CCP2SEL                           00000003
+CCP3CON                           00000313
+CCP3IE                            00000004
+CCP3IF                            00000004
+CCP3M0                            00000000
+CCP3M1                            00000001
+CCP3M2                            00000002
+CCP3M3                            00000003
+CCP4CON                           0000031A
+CCP4IE                            00000005
+CCP4IF                            00000005
+CCP4M0                            00000000
+CCP4M1                            00000001
+CCP4M2                            00000002
+CCP4M3                            00000003
+CCPR1H                            00000292
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 24
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+CCPR1L                            00000291
+CCPR2H                            00000299
+CCPR2L                            00000298
+CCPR3H                            00000312
+CCPR3L                            00000311
+CCPR4H                            00000319
+CCPR4L                            00000318
+CCPTMRS                           0000029E
+CCPTMRS0                          0000029E
+CDAFVR0                           00000002
+CDAFVR1                           00000003
+CFGS                              00000006
+CHS0                              00000002
+CHS1                              00000003
+CHS2                              00000004
+CHS3                              00000005
+CHS4                              00000006
+CKE                               00000006
+CKP                               00000004
+CLKRCON                           0000039A
+CLKRDC0                           00000003
+CLKRDC1                           00000004
+CLKRDIV0                          00000000
+CLKRDIV1                          00000001
+CLKRDIV2                          00000002
+CLKREN                            00000007
+CLKROE                            00000006
+CLKRSLR                           00000005
+CM1CON0                           00000111
+CM1CON1                           00000112
+CM2CON0                           00000113
+CM2CON1                           00000114
+CMOUT                             00000115
+CMP                               
+CPFSGT                            
+CPSCH0                            00000000
+CPSCH1                            00000001
+CPSCH2                            00000002
+CPSCH3                            00000003
+CPSCON0                           0000001E
+CPSCON1                           0000001F
+CPSON                             00000007
+CPSOUT                            00000001
+CPSRM                             00000006
+CPSRNG0                           00000002
+CPSRNG1                           00000003
+CREN                              00000004
+CSRC                              00000007
+C_SHAD                            00000000
+ClearOutsFlag                     SysFlags,3
+ClearRam                          00000034
+ClearRam_2                        00000045
+ClearRam_L2                       0000004E
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 25
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+CurrentInput                      00000033
+CurrentOutput                     00000034
+DACCON0                           00000118
+DACCON1                           00000119
+DACEN                             00000007
+DACLPS                            00000006
+DACNSS                            00000000
+DACOE                             00000005
+DACPSS0                           00000002
+DACPSS1                           00000003
+DACR0                             00000000
+DACR1                             00000001
+DACR2                             00000002
+DACR3                             00000003
+DACR4                             00000004
+DC                                00000001
+DC1B0                             00000004
+DC1B1                             00000005
+DC2B0                             00000004
+DC2B1                             00000005
+DC3B0                             00000004
+DC3B1                             00000005
+DC4B0                             00000004
+DC4B1                             00000005
+DC_SHAD                           00000001
+DHEN                              00000000
+D_NOT_A                           00000005
+DataReceivedFlag                  SerFlags,1
+DataSentFlag                      SerFlags,2
+DebounceTime                      0000000A
+DecTimer                          0000005A
+DecTimer1                         00000059
+DecTimer2                         00000057
+DecTimer3                         00000055
+DecTimer4                         00000053
+Delay100uS                        00000079
+Delay10uS                         00000077
+Delay40uS                         0000007B
+DelayWuS                          0000007C
+DelayWuS_Loop                     0000007D
+ECCP1AS                           00000295
+ECCP2AS                           0000029C
+EEADR                             00000191
+EEADRH                            00000192
+EEADRL                            00000191
+EEAddrTemp                        00000026
+EECON1                            00000195
+EECON2                            00000196
+EEDAT                             00000193
+EEDATH                            00000194
+EEDATL                            00000193
+EEDataTemp                        00000027
+EEIE                              00000004
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 26
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+EEIF                              00000004
+EEPGD                             00000007
+EERead                            00000083
+EEReadW                           00000082
+EEWrite                           0000008D
+EEWriteW                          0000008C
+EEWrite_L1                        00000097
+EEWrite_L2                        000000A0
+F                                 00000001
+FERR                              00000002
+FREE                              00000004
+FSR0                              00000004
+FSR0H                             00000005
+FSR0H_SHAD                        00000FE9
+FSR0L                             00000004
+FSR0L_SHAD                        00000FE8
+FSR1                              00000006
+FSR1H                             00000007
+FSR1H_SHAD                        00000FEB
+FSR1L                             00000006
+FSR1L_SHAD                        00000FEA
+FVRCON                            00000117
+FVREN                             00000007
+FVRRDY                            00000006
+GCEN                              00000007
+GIE                               00000007
+GO                                00000001
+GO_NOT_DONE                       00000001
+HFIOFL                            00000003
+HFIOFR                            00000004
+HFIOFS                            00000000
+HandleButton                      000000D5
+HasISR                            00000080
+HdlBtn_1                          000000DC
+HdlBtn_DB                         000000E1
+INDF0                             00000000
+INDF1                             00000001
+INTCON                            0000000B
+INTE                              00000004
+INTEDG                            00000006
+INTF                              00000001
+IN_A0                             PORTB,0
+IN_A1                             PORTB,1
+IN_A2                             PORTB,3
+IN_A3                             PORTB,4
+IOCBF                             00000396
+IOCBF0                            00000000
+IOCBF1                            00000001
+IOCBF2                            00000002
+IOCBF3                            00000003
+IOCBF4                            00000004
+IOCBF5                            00000005
+IOCBF6                            00000006
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 27
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+IOCBF7                            00000007
+IOCBN                             00000395
+IOCBN0                            00000000
+IOCBN1                            00000001
+IOCBN2                            00000002
+IOCBN3                            00000003
+IOCBN4                            00000004
+IOCBN5                            00000005
+IOCBN6                            00000006
+IOCBN7                            00000007
+IOCBP                             00000394
+IOCBP0                            00000000
+IOCBP1                            00000001
+IOCBP2                            00000002
+IOCBP3                            00000003
+IOCBP4                            00000004
+IOCBP5                            00000005
+IOCBP6                            00000006
+IOCBP7                            00000007
+IOCIE                             00000003
+IOCIF                             00000000
+IRCF0                             00000003
+IRCF1                             00000004
+IRCF2                             00000005
+IRCF3                             00000006
+InEquOut                          SysFlags,1
+In_Enable                         PORTA,6
+InitializeIO                      0000010D
+InputError                        SysFlags,4
+LATA                              0000010C
+LATA0                             00000000
+LATA1                             00000001
+LATA2                             00000002
+LATA3                             00000003
+LATA4                             00000004
+LATA6                             00000006
+LATA7                             00000007
+LATB                              0000010D
+LATB0                             00000000
+LATB1                             00000001
+LATB2                             00000002
+LATB3                             00000003
+LATB4                             00000004
+LATB5                             00000005
+LATB6                             00000006
+LATB7                             00000007
+LED1_Bit                          00000002
+LED1_BlinkCount                   00000024
+LED1_Blink_end                    00000032
+LED1_Blinking                     0000001E
+LED1_Blinks                       00000022
+LED1_Count                        00000025
+LED1_Lat                          LATB,LED1_Bit
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 28
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+LED1_NextBlink                    0000002E
+LED1_Start                        0000002C
+LED1_Time                         00000023
+LED1_Tris                         TRISB,LED1_Bit
+LEDErrorTime                      0000000A
+LEDFastTime                       00000014
+LEDTIME                           00000064
+LFIOFR                            00000001
+LOADFSR0                          
+LOADFSR0W                         
+LOADFSR1                          
+LOADFSR1W                         
+LWLO                              00000005
+MC1OUT                            00000000
+MC2OUT                            00000001
+MDBIT                             00000000
+MDCARH                            0000039F
+MDCARL                            0000039E
+MDCH0                             00000000
+MDCH1                             00000001
+MDCH2                             00000002
+MDCH3                             00000003
+MDCHODIS                          00000007
+MDCHPOL                           00000006
+MDCHSYNC                          00000005
+MDCL0                             00000000
+MDCL1                             00000001
+MDCL2                             00000002
+MDCL3                             00000003
+MDCLODIS                          00000007
+MDCLPOL                           00000006
+MDCLSYNC                          00000005
+MDCON                             0000039C
+MDEN                              00000007
+MDMS0                             00000000
+MDMS1                             00000001
+MDMS2                             00000002
+MDMS3                             00000003
+MDMSODIS                          00000007
+MDOE                              00000006
+MDOPOL                            00000004
+MDOUT                             00000003
+MDSLR                             00000005
+MDSRC                             0000039D
+MFIOFR                            00000002
+ML_Btn_End                        000000BE
+ML_Btn_Error                      000000B9
+ML_Btn_Inactive                   000000B3
+ML_LED_End                        000000D4
+ML_LED_Fast                       000000CE
+ML_LED_Off                        000000D3
+MainLoop                          000000A6
+NOT_BOR                           00000000
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 29
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+NOT_PD                            00000003
+NOT_POR                           00000001
+NOT_RI                            00000002
+NOT_RMCLR                         00000003
+NOT_T1SYNC                        00000002
+NOT_TO                            00000004
+NOT_WPUEN                         00000007
+OERR                              00000001
+OPTION_REG                        00000095
+OSCCON                            00000099
+OSCCON_Value                      000000F0
+OSCSTAT                           0000009A
+OSCTUNE                           00000098
+OSFIE                             00000007
+OSFIF                             00000007
+OSTS                              00000005
+OUT_A0                            LATA,0
+OUT_A1                            LATA,1
+OUT_A2                            LATA,2
+OUT_A3                            LATA,3
+OUT_Enable                        LATA,4
+OutputActive                      SysFlags,0
+P                                 00000004
+P1CSEL                            00000001
+P1DC0                             00000000
+P1DC1                             00000001
+P1DC2                             00000002
+P1DC3                             00000003
+P1DC4                             00000004
+P1DC5                             00000005
+P1DC6                             00000006
+P1DSEL                            00000002
+P1M0                              00000006
+P1M1                              00000007
+P1RSEN                            00000007
+P2BSEL                            00000004
+P2DC0                             00000000
+P2DC1                             00000001
+P2DC2                             00000002
+P2DC3                             00000003
+P2DC4                             00000004
+P2DC5                             00000005
+P2DC6                             00000006
+P2M0                              00000006
+P2M1                              00000007
+P2RSEN                            00000007
+PCIE                              00000006
+PCL                               00000002
+PCLATH                            0000000A
+PCLATH_SHAD                       00000FE7
+PCON                              00000096
+PEIE                              00000006
+PEN                               00000002
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 30
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+PIE1                              00000091
+PIE2                              00000092
+PIE3                              00000093
+PIE4                              00000094
+PIR1                              00000011
+PIR2                              00000012
+PIR3                              00000013
+PIR4                              00000014
+PLLR                              00000006
+PORTA                             0000000C
+PORTB                             0000000D
+PR2                               0000001B
+PR2_Value                         0000007D
+PR4                               00000416
+PR6                               0000041D
+PS0                               00000000
+PS1                               00000001
+PS2                               00000002
+PSA                               00000003
+PSS1AC0                           00000002
+PSS1AC1                           00000003
+PSS1BD0                           00000000
+PSS1BD1                           00000001
+PSS2AC0                           00000002
+PSS2AC1                           00000003
+PSS2BD0                           00000000
+PSS2BD1                           00000001
+PSTR1CON                          00000296
+PSTR2CON                          0000029D
+PWM1CON                           00000294
+PWM2CON                           0000029B
+Param70                           00000070
+Param71                           00000071
+Param72                           00000072
+Param73                           00000073
+Param74                           00000074
+Param75                           00000075
+Param76                           00000076
+Param77                           00000077
+Param78                           00000078
+Param79                           00000079
+Param7A                           0000007A
+Param7B                           0000007B
+Param7C                           0000007C
+Param7D                           0000007D
+Param7E                           0000007E
+Param7F                           0000007F
+PortADDRBits                      000000E0
+PortAValue                        00000010
+PortBDDRBits                      000000FF
+PortBValue                        00000004
+RA0                               00000000
+RA1                               00000001
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 31
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+RA2                               00000002
+RA3                               00000003
+RA4                               00000004
+RA5                               00000005
+RA5_In                            PORTA,5
+RA6                               00000006
+RA7                               00000007
+RA7_In                            PORTA,7
+RB0                               00000000
+RB1                               00000001
+RB2                               00000002
+RB3                               00000003
+RB4                               00000004
+RB5                               00000005
+RB6                               00000006
+RB6_In                            PORTB,6
+RB7                               00000007
+RB7_In                            PORTB,7
+RCEN                              00000003
+RCIDL                             00000006
+RCIE                              00000005
+RCIF                              00000005
+RCREG                             00000199
+RCSTA                             0000019D
+RCSTA_Value                       00000090
+RD                                00000000
+RSEN                              00000001
+RX9                               00000006
+RX9D                              00000000
+RXByte                            00000031
+RXDTSEL                           00000007
+R_NOT_W                           00000002
+ReadInput                         000000E7
+ReadInput_End                     000000F4
+S                                 00000003
+SBCDE                             00000002
+SBOREN                            00000007
+SCIE                              00000005
+SCKP                              00000004
+SCS0                              00000000
+SCS1                              00000001
+SDAHT                             00000003
+SDO1SEL                           00000006
+SEN                               00000000
+SENDB                             00000003
+SETF                              
+SKPB                              
+SKPNB                             
+SMP                               00000007
+SPBRG                             0000019B
+SPBRGH                            0000019C
+SPBRGL                            0000019B
+SPEN                              00000007
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 32
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+SPLLEN                            00000007
+SRCLK0                            00000004
+SRCLK1                            00000005
+SRCLK2                            00000006
+SRCON0                            0000011A
+SRCON1                            0000011B
+SREN                              00000005
+SRLEN                             00000007
+SRNQEN                            00000002
+SRPR                              00000000
+SRPS                              00000001
+SRQEN                             00000003
+SRRC1E                            00000000
+SRRC2E                            00000001
+SRRCKE                            00000002
+SRRPE                             00000003
+SRSC1E                            00000004
+SRSC2E                            00000005
+SRSCKE                            00000006
+SRSPE                             00000007
+SS1SEL                            00000005
+SSP1ADD                           00000212
+SSP1BUF                           00000211
+SSP1CON1                          00000215
+SSP1CON2                          00000216
+SSP1CON3                          00000217
+SSP1IE                            00000003
+SSP1IF                            00000003
+SSP1MSK                           00000213
+SSP1STAT                          00000214
+SSP2ADD                           0000021A
+SSP2BUF                           00000219
+SSP2CON1                          0000021D
+SSP2CON2                          0000021E
+SSP2CON3                          0000021F
+SSP2IE                            00000000
+SSP2IF                            00000000
+SSP2MSK                           0000021B
+SSP2STAT                          0000021C
+SSPADD                            00000212
+SSPBUF                            00000211
+SSPCON                            00000215
+SSPCON1                           00000215
+SSPCON2                           00000216
+SSPCON3                           00000217
+SSPEN                             00000005
+SSPM0                             00000000
+SSPM1                             00000001
+SSPM2                             00000002
+SSPM3                             00000003
+SSPMSK                            00000213
+SSPOV                             00000006
+SSPSTAT                           00000214
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 33
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+STATUS                            00000003
+STATUS_SHAD                       00000FE4
+STKOVF                            00000007
+STKPTR                            00000FED
+STKUNF                            00000006
+STR1A                             00000000
+STR1B                             00000001
+STR1C                             00000002
+STR1D                             00000003
+STR1SYNC                          00000004
+STR2A                             00000000
+STR2B                             00000001
+STR2C                             00000002
+STR2D                             00000003
+STR2SYNC                          00000004
+SUBBF                             
+SWDTEN                            00000000
+SYNC                              00000004
+SelectedOutput                    00000035
+SerFlags                          00000032
+Ser_Buff_Bank                     2
+Ser_In_Buff                       00000126
+Ser_In_Bytes                      00000120
+Ser_In_InPtr                      00000122
+Ser_In_OutPtr                     00000123
+Ser_Out_Buff                      00000146
+Ser_Out_Bytes                     00000121
+Ser_Out_InPtr                     00000124
+Ser_Out_OutPtr                    00000125
+SetOutput                         000000F5
+SetOutput_Done                    00000106
+Start_Btn                         PORTB,5
+SysFlags                          00000036
+SysLEDCount                       00000021
+SysLED_Bit                        00000007
+SysLED_Time                       00000020
+SysLED_Tris                       TRISA,SysLED_Bit
+SystemBlink_end                   00000017
+SystemTick_end                    00000032
+T0CS                              00000005
+T0IE                              00000005
+T0IF                              00000002
+T0SE                              00000004
+T0XCS                             00000000
+T1CKPS0                           00000004
+T1CKPS1                           00000005
+T1CON                             00000018
+T1GCON                            00000019
+T1GGO                             00000003
+T1GGO_NOT_DONE                    00000003
+T1GPOL                            00000006
+T1GSPM                            00000004
+T1GSS0                            00000000
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 34
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+T1GSS1                            00000001
+T1GTM                             00000005
+T1GVAL                            00000002
+T1OSCEN                           00000003
+T1OSCR                            00000007
+T2CKPS0                           00000000
+T2CKPS1                           00000001
+T2CON                             0000001C
+T2CON_Value                       0000004F
+T2OUTPS0                          00000003
+T2OUTPS1                          00000004
+T2OUTPS2                          00000005
+T2OUTPS3                          00000006
+T4CKPS0                           00000000
+T4CKPS1                           00000001
+T4CON                             00000417
+T4OUTPS0                          00000003
+T4OUTPS1                          00000004
+T4OUTPS2                          00000005
+T4OUTPS3                          00000006
+T6CKPS0                           00000000
+T6CKPS1                           00000001
+T6CON                             0000041E
+T6OUTPS0                          00000003
+T6OUTPS1                          00000004
+T6OUTPS2                          00000005
+T6OUTPS3                          00000006
+TMR0                              00000015
+TMR0CS                            00000005
+TMR0IE                            00000005
+TMR0IF                            00000002
+TMR0SE                            00000004
+TMR1                              00000016
+TMR1CS0                           00000006
+TMR1CS1                           00000007
+TMR1GE                            00000007
+TMR1GIE                           00000007
+TMR1GIF                           00000007
+TMR1H                             00000017
+TMR1IE                            00000000
+TMR1IF                            00000000
+TMR1L                             00000016
+TMR1ON                            00000000
+TMR2                              0000001A
+TMR2IE                            00000001
+TMR2IF                            00000001
+TMR2ON                            00000002
+TMR4                              00000415
+TMR4IE                            00000001
+TMR4IF                            00000001
+TMR4ON                            00000002
+TMR6                              0000041C
+TMR6IE                            00000003
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 35
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TMR6IF                            00000003
+TMR6ON                            00000002
+TOSH                              00000FEF
+TOSL                              00000FEE
+TRISA                             0000008C
+TRISA0                            00000000
+TRISA1                            00000001
+TRISA2                            00000002
+TRISA3                            00000003
+TRISA4                            00000004
+TRISA5                            00000005
+TRISA6                            00000006
+TRISA7                            00000007
+TRISB                             0000008D
+TRISB0                            00000000
+TRISB1                            00000001
+TRISB2                            00000002
+TRISB3                            00000003
+TRISB4                            00000004
+TRISB5                            00000005
+TRISB6                            00000006
+TRISB7                            00000007
+TRMT                              00000001
+TSEN                              00000005
+TSRNG                             00000004
+TUN0                              00000000
+TUN1                              00000001
+TUN2                              00000002
+TUN3                              00000003
+TUN4                              00000004
+TUN5                              00000005
+TX9                               00000006
+TX9D                              00000000
+TXByte                            00000030
+TXCKSEL                           00000000
+TXEN                              00000005
+TXIE                              00000004
+TXIF                              00000004
+TXREG                             0000019A
+TXSTA                             0000019E
+TXSTA_Value                       00000024
+TestT1_Zero                       00000073
+TestT2_Zero                       0000006F
+TestT3_Zero                       0000006B
+TestT4_Zero                       00000067
+TestTimerIsZero                   
+Timer1Hi                          00000029
+Timer1Lo                          00000028
+Timer2Hi                          0000002B
+Timer2Lo                          0000002A
+Timer3Hi                          0000002D
+Timer3Lo                          0000002C
+Timer4Hi                          0000002F
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 36
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+Timer4Lo                          0000002E
+UA                                00000001
+UseEEParams                       00000000
+W                                 00000000
+WCOL                              00000007
+WDTCON                            00000097
+WDTPS0                            00000001
+WDTPS1                            00000002
+WDTPS2                            00000003
+WDTPS3                            00000004
+WDTPS4                            00000005
+WPUA                              0000020C
+WPUA5                             00000005
+WPUB                              0000020D
+WPUB0                             00000000
+WPUB1                             00000001
+WPUB2                             00000002
+WPUB3                             00000003
+WPUB4                             00000004
+WPUB5                             00000005
+WPUB6                             00000006
+WPUB7                             00000007
+WR                                00000001
+WREG                              00000009
+WREG_SHAD                         00000FE5
+WREN                              00000002
+WRERR                             00000003
+WUE                               00000001
+Z                                 00000002
+Z_SHAD                            00000002
+_BOREN_NSLEEP                     0000FDFF
+_BOREN_OFF                        0000F9FF
+_BOREN_ON                         0000FFFF
+_BOREN_SBODEN                     0000FBFF
+_BORV_19                          0000FFFF
+_BORV_HI                          0000FBFF
+_BORV_LO                          0000FFFF
+_C                                STATUS,C
+_CLKOUTEN_OFF                     0000FFFF
+_CLKOUTEN_ON                      0000F7FF
+_CONFIG1                          00008007
+_CONFIG2                          00008008
+_CPD_OFF                          0000FFFF
+_CPD_ON                           0000FEFF
+_CP_OFF                           0000FFFF
+_CP_ON                            0000FF7F
+_DEVID1                           00008006
+_FCMEN_OFF                        0000DFFF
+_FCMEN_ON                         0000FFFF
+_FOSC_ECH                         0000FFFF
+_FOSC_ECL                         0000FFFD
+_FOSC_ECM                         0000FFFE
+_FOSC_EXTRC                       0000FFFB
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 37
+
+F648A Macros
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_FOSC_HS                          0000FFFA
+_FOSC_INTOSC                      0000FFFC
+_FOSC_LP                          0000FFF8
+_FOSC_XT                          0000FFF9
+_IDLOC0                           00008000
+_IDLOC1                           00008001
+_IDLOC2                           00008002
+_IDLOC3                           00008003
+_IESO_OFF                         0000EFFF
+_IESO_ON                          0000FFFF
+_LVP_OFF                          0000DFFF
+_LVP_ON                           0000FFFF
+_MCLRE_OFF                        0000FFBF
+_MCLRE_ON                         0000FFFF
+_PLLEN_OFF                        0000FEFF
+_PLLEN_ON                         0000FFFF
+_PWRTE_OFF                        0000FFFF
+_PWRTE_ON                         0000FFDF
+_STVREN_OFF                       0000FDFF
+_STVREN_ON                        0000FFFF
+_WDTE_NSLEEP                      0000FFF7
+_WDTE_OFF                         0000FFE7
+_WDTE_ON                          0000FFFF
+_WDTE_SWDTEN                      0000FFEF
+_WRT_ALL                          0000FFFC
+_WRT_BOOT                         0000FFFE
+_WRT_HALF                         0000FFFD
+_WRT_OFF                          0000FFFF
+_Z                                STATUS,Z
+__16F1847                         00000001
+kMaxMode                          00000004
+mCall0To1                         
+mCall0To2                         
+mCall0To3                         
+mCall1To0                         
+mCall1To2                         
+mCall1To3                         
+mCall2To0                         
+mCall2To1                         
+mCall2To3                         
+mCall3To0                         
+mCall3To1                         
+mCall3To2                         
+mPCLGoto                          
+nvFirstParamByte                  nvSysFlags
+nvLastParamByte                   nvSysFlags
+nvSysFlags                        00000000
+oldCode                           00000000
+start                             000000A5
+useRS232                          00000000
+
+MPASM 5.84               ../ROTARYSWITCH.ASM   7-12-2019  18:25:38         PAGE 38
+
+F648A Macros
+
+
+
+Errors   :     0
+Warnings :     0 reported,     0 suppressed
+Messages :     0 reported,    40 suppressed
+
+

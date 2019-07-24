@@ -1,0 +1,2 @@
+# RotarySwitch
+ Electronic Rotary Switch
