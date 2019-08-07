@@ -2,11 +2,12 @@
 // Rotary Switch for Track Ladder Selection
 // Filename: R-Switch.scad
 // Created: 5/31/2019
-// Revision: 1.0.6 7/24/2019
+// Revision: 1.0.6 8/5/2019
 // Units: mm
 // ******************************************
 //  ***** History *****
-// 1.0.6 7/24/2019 Added 9 step veriant.
+// 1.0.6 8/5/2019 Added 14 step variant.
+// 1.0.6 7/24/2019 Added 9 step variant.
 // 1.0.5 7/18/2019 Added spring cover to top.
 // 1.0.4 7/17/2019 Added DetentSpringCover and alignment mark.
 // 1.0.3 7/15/2019 Tightened code wheel space.
@@ -21,6 +22,10 @@
 // CodeOffset_a works best if half of Code_a, or at least 16
 // ******************************************
 //  ***** for STL output
+CW14_nCodes=14;
+CW14_d=70;
+CW14_Code_a=22.5;
+CW14_CodeOffset_a=16;
 
 CW16_nCodes=16;
 CW16_d=70;
@@ -45,6 +50,17 @@ CWn_Code_a=30.0;
 // rotate([180,0,0]) ReadHeadTopPlate(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, CodeOffset_a=CWn_CodeOffset_a);
 // SpacerRing(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, HasStop=true);
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, CodeOffset_a=CWn_CodeOffset_a, PCB_Mounting_Ears=true);
+// DetentSpringCover(); // print 2
+// ---------------------------------
+//  ***** for Castlegate West *****
+// Button on knob, 14 positions, w/ stop
+//
+// Knob(SP_d=CW14_d, nCodes=CW14_nCodes, HasButton=true);
+// NumberPlate(SP_d=CW14_d, nDetents=CW14_nCodes, Detent_a=CW14_Code_a);
+// rotate([180,0,0]) ReadHeadTopPlate(CW_d=CW14_d, nCodes=CW14_nCodes, Code_a=CW14_Code_a, CodeOffset_a=CW14_CodeOffset_a);
+// SpacerRing(CW_d=CW14_d, nCodes=CW14_nCodes, Code_a=CW14_Code_a, HasStop=true);
+// rotate([180,0,0]) ReadHeadBotPlate(CW_d=CW14_d, nCodes=CW14_nCodes, Code_a=CW14_Code_a, CodeOffset_a=CW14_CodeOffset_a, PCB_Mounting_Ears=true);
+// CodeWheel(CW_d=CW14_d, nCodes=CW14_nCodes, Code_a=CW14_Code_a, CodeOffset_a=CW14_CodeOffset_a); // 14 position
 // DetentSpringCover(); // print 2
 // ---------------------------------
 //  ***** for Castlegate East *****
