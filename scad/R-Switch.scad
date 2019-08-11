@@ -2,10 +2,11 @@
 // Rotary Switch for Track Ladder Selection
 // Filename: R-Switch.scad
 // Created: 5/31/2019
-// Revision: 1.0.6 8/5/2019
+// Revision: 1.0.7 8/11/2019
 // Units: mm
 // ******************************************
 //  ***** History *****
+// 1.0.7 8/11/2019 CW16 w/ stop.
 // 1.0.6 8/5/2019 Added 14 step variant.
 // 1.0.6 7/24/2019 Added 9 step variant.
 // 1.0.5 7/18/2019 Added spring cover to top.
@@ -29,7 +30,8 @@ CW14_CodeOffset_a=16;
 
 CW16_nCodes=16;
 CW16_d=70;
-CW16_Code_a=22.5; // no bottom gap
+CW16_Code_a=21.5; // leave room for stop
+//CW16_Code_a=22.5; // no bottom gap
 CW16_CodeOffset_a=16;
 
 CW8_nCodes=8;
@@ -64,13 +66,14 @@ CWn_Code_a=30.0;
 // DetentSpringCover(); // print 2
 // ---------------------------------
 //  ***** for Castlegate East *****
-// Button on knob, 16 positions, no stop
+// Button on knob, 16 positions, w/ stop
 //
 // Knob(SP_d=CW16_d, nCodes=16, HasButton=true);
 // NumberPlate(SP_d=CW16_d, nDetents=CW16_nCodes, Detent_a=CW16_Code_a);
 // rotate([180,0,0]) ReadHeadTopPlate(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a);
-// SpacerRing(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, HasStop=false);
+// SpacerRing(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, HasStop=true);
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a, PCB_Mounting_Ears=true);
+// CodeWheel(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a);
 // DetentSpringCover(); // print 2
 // ---------------------------------
 
