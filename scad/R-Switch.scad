@@ -2,10 +2,11 @@
 // Rotary Switch for Track Ladder Selection
 // Filename: R-Switch.scad
 // Created: 5/31/2019
-// Revision: 1.0.7 8/11/2019
+// Revision: 1.1.0 8/14/2019
 // Units: mm
 // ******************************************
 //  ***** History *****
+// 1.1.0 8/14/2019 Magnet Detents.
 // 1.0.7 8/11/2019 CW16 w/ stop.
 // 1.0.6 8/5/2019 Added 14 step variant.
 // 1.0.6 7/24/2019 Added 9 step variant.
@@ -23,6 +24,8 @@
 // CodeOffset_a works best if half of Code_a, or at least 16
 // ******************************************
 //  ***** for STL output
+Knob_Pointed(SP_d=48, HasButton=true);
+
 CW14_nCodes=14;
 CW14_d=70;
 CW14_Code_a=22.5;
@@ -43,6 +46,8 @@ CWn_nCodes=9;
 CWn_d=70;
 CWn_CodeOffset_a=16;
 CWn_Code_a=30.0;
+
+//rotate([0,180,0]) DetentMagHolder();
 
 // -----------------------------
 //  ***** Generic Set CWn *****
@@ -71,9 +76,9 @@ CWn_Code_a=30.0;
 // Knob(SP_d=CW16_d, nCodes=16, HasButton=true);
 // NumberPlate(SP_d=CW16_d, nDetents=CW16_nCodes, Detent_a=CW16_Code_a);
 // rotate([180,0,0]) ReadHeadTopPlate(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a);
-// SpacerRing(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, HasStop=true);
+// SpacerRing(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, HasStop=true, HasMagnets=true);
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a, PCB_Mounting_Ears=true);
-// CodeWheel(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a);
+// CodeWheel(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a, HasMagnets=true);
 // DetentSpringCover(); // print 2
 // ---------------------------------
 
@@ -119,6 +124,8 @@ Shaft_d=12.7;
 SelectionPlate_d=60;
 BoltInset=3.5;
 ReadHeadBorder=BoltInset;
+Mag_l = 0.125 * 25.4;
+Mag_d = 0.125 * 25.4;
 
 module CodeWheelAnimation(CW_d=60,nCodes=8,Code_a=37.5,CodeOffset_a=16,HasStop=true){
 	// Set steps to nCodes
@@ -169,6 +176,54 @@ module RoundRect(X=10,Y=10,Z=2,R=1){
 	translate([X/2-R,Y/2-R,0]) cylinder(r=R,h=Z);
 	}
 } // RoundRect
+
+module Knob_Pointed(SP_d=SelectionPlate_d, HasButton=false){
+	K_Grip_h=15;
+	K_Grip_d=34;
+	k_GripTop_h=2;
+	
+	
+	// Top
+	translate([0,0,3])
+	difference(){
+		union(){
+			cylinder(d=K_Grip_d,h=K_Grip_h);
+			translate([0,0,K_Grip_h-Overlap]) cylinder(d1=K_Grip_d,d2=12.7,h=k_GripTop_h);
+		} // union
+		
+		for (j=[0:6]) rotate([0,0,360/7*j]) translate([K_Grip_d/2+3,0,-Overlap])
+			cylinder(d=11,h=K_Grip_h+k_GripTop_h+Overlap*2);
+		
+		// shaft hole
+		translate([0,0,-Overlap]) cylinder(d=Shaft_d+IDXtra,h=K_Grip_h-3+Overlap*2);
+		translate([0,0,K_Grip_h-3]) cylinder(d1=Shaft_d+IDXtra,d2=8+IDXtra,h=3);
+		
+		// Set screws
+		translate([0,0,(K_Grip_h-3)/2]) rotate([0,90,0]) Bolt8Hole(depth=K_Grip_d/2+2);
+		translate([0,0,(K_Grip_h-3)/2]) rotate([0,0,360/7*2]) rotate([0,90,0]) Bolt8Hole(depth=K_Grip_d/2+2);
+		
+		if (HasButton==true) cylinder(d=8+IDXtra,h=K_Grip_h+k_GripTop_h+Overlap);
+	} // diff
+	
+	// Transition
+	difference(){
+		cylinder(d1=K_Grip_d+6,d2=K_Grip_d,h=3+Overlap);
+		translate([0,0,-Overlap]) cylinder(d=Shaft_d+IDXtra,h=3+Overlap*3);
+	} // diff
+	
+	translate([0,0,-1.2+Overlap])
+	difference(){
+		cylinder(d=SP_d,h=1.2);
+		
+		// Center hole
+		translate([0,0,-Overlap]) cylinder(d=Shaft_d+IDXtra,h=3);
+	} // diff
+	
+	//Pointer
+		translate([0,SP_d/2-4,-1.1]) rotate([0,0,-30]) cylinder(d=8,h=2.5,$fn=3);
+} // Knob_Pointed
+
+//Knob_Pointed(SP_d=48, HasButton=true);
 
 module Knob(SP_d=SelectionPlate_d, nCodes=16, HasButton=false){
 	K_Grip_h=15;
@@ -388,6 +443,31 @@ module PerimeterBoltCircle(CW_d=60,nBolts=6){
 
 // PerimeterBoltCircle(CW_d=CW_d) ....;
 
+
+module DetentMagHolder(){
+	Plate_h=2;
+	
+	difference(){
+		union(){
+			cylinder(d=DW_Ball_d+6,h=Plate_h);
+			translate([0,0,-10+Plate_h]) cylinder(d=0.3125*25.4,h=10);
+			
+			// Screw bosses for cover
+			translate([0,DW_Ball_d/2+BoltInset,0]) cylinder(d=BoltInset*2,h=Plate_h);
+			translate([0,-DW_Ball_d/2-BoltInset,0]) cylinder(d=BoltInset*2,h=Plate_h);
+		} // union
+		
+		// Magnet
+		translate([0,0,-10+Plate_h-Overlap]) cylinder(d=Mag_d,h=10+Overlap*2);
+		
+		// Screw bosses for cover
+		translate([0,DW_Ball_d/2+BoltInset,Plate_h+0.2]) Bolt4FlatHeadHole(); //Bolt4Hole();
+		translate([0,-DW_Ball_d/2-BoltInset,Plate_h+0.2]) Bolt4FlatHeadHole(); //Bolt4Hole();
+	} // diff
+} // DetentMagHolder
+
+//DetentMagHolder();
+
 module DetentSpringCover(){
 	Plate_h=2;
 	
@@ -522,9 +602,9 @@ module ReadHeadBotPlate(CW_d=60, nCodes=16, Code_a=0, CodeOffset_a=15, PCB_Mount
 //ReadHeadBotPlate(CW_d=60, nCodes=12, Code_a=28, CodeOffset_a=14, PCB_Mounting_Ears=true);  // 12 position
 //ReadHeadBotPlate(CW_d=60, nCodes=16, Code_a=20, CodeOffset_a=16, PCB_Mounting_Ears=true);  // 16 position
 
-module SpacerRing(CW_d=60, nCodes=16, Code_a=0, HasStop=true){
+module SpacerRing(CW_d=60, nCodes=16, Code_a=0, HasStop=true, HasMagnets=true){
 	nBolts=6;
-	Plate_h=3;
+	Plate_h= HasMagnets? Mag_l+0.5:3;
 	
 	C_a = Code_a==0? 360/nCodes:Code_a;
 	echo("Code Angle =",C_a);
@@ -554,8 +634,8 @@ module SpacerRing(CW_d=60, nCodes=16, Code_a=0, HasStop=true){
 
 // translate([0,0,-3-Overlap*2]) SpacerRing(CW_d=70, nCodes=8, Code_a=37.5, HasStop=true);
 
-module CodeWheel(CW_d=60, nCodes=16, Code_a=0, CodeOffset_a=15, HasStop=true){
-	CW_h=2.1;
+module CodeWheel(CW_d=60, nCodes=16, Code_a=0, CodeOffset_a=15, HasStop=true, HasMagnets=true){
+	CW_h= HasMagnets? Mag_l:2.1;
 	CodeHole_d=1.8;
 	DetentHole_d=3.5;
 	
@@ -573,7 +653,11 @@ module CodeWheel(CW_d=60, nCodes=16, Code_a=0, CodeOffset_a=15, HasStop=true){
 			translate([CW_d/2-CodeSpace,0,-Overlap]) cylinder(d=CodeHole_d,h=CW_h+Overlap*2);
 			
 			// Detent Hole
-			rotate([0,0,180]) translate([16,0,-Overlap]) cylinder(d=DetentHole_d,h=CW_h+Overlap*2);
+			if (HasMagnets==true){
+				rotate([0,0,180]) translate([16,0,-Overlap]) cylinder(d=Mag_d,h=CW_h+Overlap*2);
+			}else{
+				rotate([0,0,180]) translate([16,0,-Overlap]) cylinder(d=DetentHole_d,h=CW_h+Overlap*2);
+			}
 			
 			// Bit 0
 			if (floor(j/2)*2 != j)
@@ -606,8 +690,8 @@ module CodeWheel(CW_d=60, nCodes=16, Code_a=0, CodeOffset_a=15, HasStop=true){
 	} // diff
 	
 	if (HasStop==true){
-		rotate([0,0,-C_a/2-3.5]) translate([CW_d/2,0,0]) cylinder(d=2.2,h=2);
-		rotate([0,0,-C_a/2+3.5+C_a*(nCodes-1)]) translate([CW_d/2,0,0]) cylinder(d=2.2,h=2);
+		rotate([0,0,-C_a/2-3.5]) translate([CW_d/2,0,0]) cylinder(d=2.2,h=CW_h);
+		rotate([0,0,-C_a/2+3.5+C_a*(nCodes-1)]) translate([CW_d/2,0,0]) cylinder(d=2.2,h=CW_h);
 	}
 } // CodeWheel
 
