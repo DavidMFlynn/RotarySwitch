@@ -2,10 +2,11 @@
 // Rotary Switch for Track Ladder Selection
 // Filename: R-Switch.scad
 // Created: 5/31/2019
-// Revision: 1.1.0 8/14/2019
+// Revision: 1.1.1 12/5/2019
 // Units: mm
 // ******************************************
 //  ***** History *****
+// 1.1.1 12/5/2019 Added 0.5mm to spacer ring.
 // 1.1.0 8/14/2019 Magnet Detents.
 // 1.0.7 8/11/2019 CW16 w/ stop.
 // 1.0.6 8/5/2019 Added 14 step variant.
@@ -24,7 +25,7 @@
 // CodeOffset_a works best if half of Code_a, or at least 16
 // ******************************************
 //  ***** for STL output
-Knob_Pointed(SP_d=48, HasButton=true);
+//Knob_Pointed(SP_d=48, HasButton=true);
 
 CW14_nCodes=14;
 CW14_d=70;
@@ -78,7 +79,7 @@ CWn_Code_a=30.0;
 // rotate([180,0,0]) ReadHeadTopPlate(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a);
 // SpacerRing(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, HasStop=true, HasMagnets=true);
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a, PCB_Mounting_Ears=true);
-// CodeWheel(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a, HasMagnets=true);
+// CodeWheel(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a, HasMagnets=false);
 // DetentSpringCover(); // print 2
 // ---------------------------------
 
@@ -623,7 +624,7 @@ module SpacerRing(CW_d=60, nCodes=16, Code_a=0, HasStop=true, HasMagnets=true){
 		} // union
 		
 		// center hole
-		translate([0,0,-Overlap]) cylinder(d=CW_d+2,h=Plate_h+Overlap*2);
+		translate([0,0,-Overlap]) cylinder(d=CW_d+2.5,h=Plate_h+Overlap*2);
 		
 		// Bolts
 		PerimeterBoltCircle(CW_d=CW_d,nBolts=nBolts) translate([0,0,Plate_h]) Bolt4ClearHole();

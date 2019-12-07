@@ -70,6 +70,7 @@ OBJECTFILES=${OBJECTDIR}/_ext/1472/RotarySwitch.o
 SOURCEFILES=../RotarySwitch.asm
 
 
+
 CFLAGS=
 ASFLAGS=
 LDLIBSOPTIONS=
