@@ -1,0 +1,55 @@
+Rotary Switch Rev A Parts List
+
+Ref.                   Desc.                  DK p/n
+------------------------------------------------------------------------------------------
+U1                     PIC16F1847 DIP18
+U2                     L7805 DPAK
+U3,U4                  74HC238 DIP16
+
+J1                     4 Cond. 5.08mm
+J2,J3                  6 Cond. 2.54mm
+J4                     5 Cond. 2.54mm DNI
+J5,J6                  8 Cond. 5.08mm
+J7                     3 Cond. 5.08mm
+
+C1                     Cap 33uF 50V THT
+C2,C3,C4               Cap 0.1uf 50v SMD 0805
+
+D1                     Diode SMA
+D2                     LED SMD 1206 sys led
+D19,D20,D21,D22,
+D23,D24,D25,D26,
+D43,D44,D45,D46,
+D47,D48,D49,D50        Diode SMA (16) Optional, use when driving relays
+
+Q1,Q2,Q3,Q4,
+Q5,Q6,Q7,Q8            MOSFET DUAL SMD SO08
+
+R1,R2,R3,R4,R5,
+R55                    Res SMD 0805 470Ω
+R6,R57,R58             Res SMD 0805 1.0KΩ
+R15,R16,R17,R18,
+R19,R20,R21,R22,
+R39,R40,R41,R42,
+R43,R44,R45,R46        Res SMD 0805 47Ω
+R23,R24,R25,R26,
+R27,R28,R29,R30,
+R47,R48,R49,R50,
+R51,R52,R53,R54        Res SMD 0805 10KΩ
+R56,R59,R60,R61,
+R62,R63                Res SMD 0805 47KΩ
+
+LED Indicators are optional
+-------------------------------
+D3,D4,D5,D6,D7,D8,D9,D10,
+D27,D28,D29,D30,
+D31,D32,D33,D34        LED SMD 1206 (16) Optional
+D11,D12,D13,D14,
+D15,D16,D17,D18,
+D35,D36,D37,D38,
+D38,D40,D41,D42        Diode SMD 4148W (16) Optional
+
+R7,R8,R9,R10,
+R11,R12,R13,R14,
+R31,R32,R33,R34,
+R35,R36,R37,R38        Res 1.0KΩ SMD 0805 (16) Optional
