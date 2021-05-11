@@ -2,10 +2,11 @@
 // Rotary Switch for Track Ladder Selection
 // Filename: R-Switch.scad
 // Created: 5/31/2019
-// Revision: 1.1.1 12/5/2019
+// Revision: 1.1.2 5/10/2021
 // Units: mm
 // ******************************************
 //  ***** History *****
+// 1.1.2 5/10/2021 Deeper switch hole in knob, Added 7, Fixed animation.
 // 1.1.1 12/5/2019 Added 0.5mm to spacer ring.
 // 1.1.0 8/14/2019 Magnet Detents.
 // 1.0.7 8/11/2019 CW16 w/ stop.
@@ -23,9 +24,13 @@
 //  ***** Notes *****
 //
 // CodeOffset_a works best if half of Code_a, or at least 16
+//
 // ******************************************
 //  ***** for STL output
+//
 //Knob_Pointed(SP_d=48, HasButton=true);
+//
+// *****************************************
 
 CW14_nCodes=14;
 CW14_d=70;
@@ -43,24 +48,42 @@ CW8_d=60;
 CW8_CodeOffset_a=16;
 CW8_Code_a=37.5;
 
+CW7_nCodes=7;
+CW7_d=60;
+CW7_CodeOffset_a=16;
+CW7_Code_a=37.5;
+//*
+CWn_nCodes=CW7_nCodes;
+CWn_d=CW7_d;
+CWn_CodeOffset_a=CW7_CodeOffset_a;
+CWn_Code_a=CW7_Code_a;
+/**/
+
+/*
 CWn_nCodes=9;
 CWn_d=70;
 CWn_CodeOffset_a=16;
 CWn_Code_a=30.0;
+/**/
 
 //rotate([0,180,0]) DetentMagHolder();
 
 // -----------------------------
 //  ***** Generic Set CWn *****
+//
 // Button on knob, n positions, w/ stop
+//
 // Knob(SP_d=CWn_d, nCodes=CWn_nCodes, HasButton=true);
 // NumberPlate(SP_d=CWn_d, nDetents=CWn_nCodes, Detent_a=CWn_Code_a);
 // rotate([180,0,0]) ReadHeadTopPlate(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, CodeOffset_a=CWn_CodeOffset_a);
 // SpacerRing(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, HasStop=true);
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, CodeOffset_a=CWn_CodeOffset_a, PCB_Mounting_Ears=true);
+// CodeWheel(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, CodeOffset_a=CWn_CodeOffset_a);
 // DetentSpringCover(); // print 2
+//
 // ---------------------------------
 //  ***** for Castlegate West *****
+//
 // Button on knob, 14 positions, w/ stop
 //
 // Knob(SP_d=CW14_d, nCodes=CW14_nCodes, HasButton=true);
@@ -70,8 +93,10 @@ CWn_Code_a=30.0;
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=CW14_d, nCodes=CW14_nCodes, Code_a=CW14_Code_a, CodeOffset_a=CW14_CodeOffset_a, PCB_Mounting_Ears=true);
 // CodeWheel(CW_d=CW14_d, nCodes=CW14_nCodes, Code_a=CW14_Code_a, CodeOffset_a=CW14_CodeOffset_a); // 14 position
 // DetentSpringCover(); // print 2
+//
 // ---------------------------------
 //  ***** for Castlegate East *****
+//
 // Button on knob, 16 positions, w/ stop
 //
 // Knob(SP_d=CW16_d, nCodes=16, HasButton=true);
@@ -82,8 +107,7 @@ CWn_Code_a=30.0;
 // CodeWheel(CW_d=CW16_d, nCodes=CW16_nCodes, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a, HasMagnets=false);
 // DetentSpringCover(); // print 2
 // ---------------------------------
-
-
+//
 // Knob(SP_d=SelectionPlate_d, nCodes=8, HasButton=false); // good for 1..9
 // Knob(SP_d=CW16_d, nCodes=16, HasButton=true); // good for 10..
 // NumberPlate(SP_d=CW16_d, nDetents=16, Detent_a=20); // 16 position
@@ -94,28 +118,30 @@ CWn_Code_a=30.0;
 // CodeWheel(CW_d=60, nCodes=8, Code_a=37.5, CodeOffset_a=15, HasStop=true); // 8 position
 // SpacerRing(CW_d=60, nCodes=8, Code_a=37.5, HasStop=true); // 8 position
 // SpacerRing(CW_d=CW16_d, nCodes=16, Code_a=CW16_Code_a, HasStop=true); // 16 position
-
+//
 // rotate([180,0,0]) ReadHeadTopPlate(CW_d=CW16_d, nCodes=16, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a);  // 16 position
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=CW16_d, nCodes=16, Code_a=CW16_Code_a, CodeOffset_a=CW16_CodeOffset_a, PCB_Mounting_Ears=true);  // 16 position
-
+//
 // rotate([180,0,0]) ReadHeadTopPlate(CW_d=60, nCodes=12, Code_a=28, CodeOffset_a=14);  // 12 position
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=60, nCodes=12, Code_a=28, CodeOffset_a=14, PCB_Mounting_Ears=true);  // 12 position
-
+//
 // rotate([180,0,0]) ReadHeadTopPlate(CW_d=60, nCodes=8, Code_a=37.5, CodeOffset_a=15);  // 8 position
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=60, nCodes=8, Code_a=37.5, CodeOffset_a=15, PCB_Mounting_Ears=true);  // 8 position
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=60, nCodes=8, Code_a=37.5, CodeOffset_a=15, PCB_Mounting_Ears=false);  // 8 position
 // DetentSpringCover(); // print 2
 // ******************************************
 //  ***** for Viewing *****
+//
 // ShowRotarySwitchExpanded();
 // ShowRotarySwitchExpanded(CW_d=CW8_d,nCodes=CW8_nCodes,Code_a=CW8_Code_a,CodeOffset_a=CW8_CodeOffset_a);
 // ShowRotarySwitchExpanded(CW_d=CW16_d,nCodes=CW16_nCodes,Code_a=CW16_Code_a,CodeOffset_a=CW16_CodeOffset_a,HasStop=false);
+//
 // ******************************************
 
 include<CommonStuffSAEmm.scad>
 
 Overlap=0.05;
-$fn=90;
+$fn=$preview? 24:90;
 IDXtra=0.2;
 
 DW_Ball_d=5/16*25.4; // Detent ball diameter
@@ -128,8 +154,21 @@ ReadHeadBorder=BoltInset;
 Mag_l = 0.125 * 25.4;
 Mag_d = 0.125 * 25.4;
 
-module CodeWheelAnimation(CW_d=60,nCodes=8,Code_a=37.5,CodeOffset_a=16,HasStop=true){
-	// Set steps to nCodes
+/*
+// Photo Sensor holes TO-18 case
+kSensor_d=4.7;
+kSensor_h=6;
+kSensorShoulder_d=7.5;
+/**/
+
+// T-1 case
+kSensor_d=3.2;
+kSensor_h=4;
+kSensorShoulder_d=6.4;
+
+
+module CodeWheelAnimation(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, CodeOffset_a=CWn_CodeOffset_a, HasStop=true){
+	// Set steps equal to nCodes
 	T_a=-$t*nCodes*Code_a;
 	
 	translate([00,0,24.5]) rotate([0,0,Code_a/2+Code_a*(nCodes/2-1)+T_a]) color("Brown") 
@@ -137,19 +176,20 @@ module CodeWheelAnimation(CW_d=60,nCodes=8,Code_a=37.5,CodeOffset_a=16,HasStop=t
 	
 	translate([00,0,20])  color("Gray") NumberPlate(SP_d=CW_d, nDetents=nCodes, Detent_a=Code_a); 
 	
-	//translate([0,0,20]) color("LightBlue") ReadHeadTopPlate(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a);
+	translate([0,0,4]) color("LightBlue") ReadHeadTopPlate(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a);
 
 	translate([0,0,0]) color("Green") rotate([0,0,T_a]) 
 		CodeWheel(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a, HasStop=HasStop);
 	
 	//translate([40,0,20]) 
-	//translate([00,0,12]) color("Tan") SpacerRing(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, HasStop=true); // 8 position
+	//translate([00,0,0]) color("Tan") SpacerRing(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, HasStop=true);
 	
-	//color("LightGray") ReadHeadBotPlate(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a, PCB_Mounting_Ears=HasStop); 
+	color("LightGray") translate([0,0,-10.1]) ReadHeadBotPlate(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a, PCB_Mounting_Ears=HasStop); 
 
 } // CodeWheelAnimation
 
 //CodeWheelAnimation(CW_d=CW16_d,nCodes=CW16_nCodes,Code_a=CW16_Code_a,CodeOffset_a=CW16_CodeOffset_a,HasStop=false);
+//CodeWheelAnimation();
 
 module ShowRotarySwitchExpanded(CW_d=60,nCodes=8,Code_a=37.5,CodeOffset_a=16,HasStop=true){
 	translate([00,0,100]) rotate([0,0,37.5*3.5]) color("Brown") Knob(SP_d=CW_d, nCodes=nCodes, HasButton=true);
@@ -244,9 +284,9 @@ module Knob(SP_d=SelectionPlate_d, nCodes=16, HasButton=false){
 		for (j=[0:6]) rotate([0,0,360/7*j]) translate([K_Grip_d/2+3,0,-Overlap])
 			cylinder(d=11,h=K_Grip_h+k_GripTop_h+Overlap*2);
 		
-		// shaft hole
-		translate([0,0,-Overlap]) cylinder(d=Shaft_d+IDXtra,h=K_Grip_h-3+Overlap*2);
-		translate([0,0,K_Grip_h-3]) cylinder(d1=Shaft_d+IDXtra,d2=8+IDXtra,h=3);
+		// shaft hole, Deepened for switch to 4mm from 3mm 5/10/2021 
+		translate([0,0,-Overlap]) cylinder(d=Shaft_d+IDXtra,h=K_Grip_h-4+Overlap*2);
+		translate([0,0,K_Grip_h-4]) cylinder(d1=Shaft_d+IDXtra,d2=8+IDXtra,h=3);
 		
 		// Set screws
 		translate([0,0,(K_Grip_h-3)/2]) rotate([0,90,0]) Bolt8Hole(depth=K_Grip_d/2+2);
@@ -520,6 +560,7 @@ module ReadHeadBotPlate(CW_d=60, nCodes=16, Code_a=0, CodeOffset_a=15, PCB_Mount
 				//scale([1,1,0.5]) sphere(d=DW_Ball_d+6);
 				}
 				
+			// Bosses
 			ReadHeadHoles(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a)
 				cylinder(d=12,h=Plate_h);
 			
@@ -582,10 +623,8 @@ module ReadHeadBotPlate(CW_d=60, nCodes=16, Code_a=0, CodeOffset_a=15, PCB_Mount
 			translate([0,-DW_Ball_d/2-BoltInset,Plate_h]) Bolt4Hole();
 		}
 		
-		// Photo Sensor holes TO-18 case
-		kSensor_d=4.7;
-		kSensor_h=6;
-		kSensorShoulder_d=7.5;
+		
+		
 		ReadHeadHoles(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a) {
 			// LEDs
 			translate([0,0,Plate_h-kSensor_h]) cylinder(d=kSensor_d+IDXtra,h=kSensor_h+Overlap); 
