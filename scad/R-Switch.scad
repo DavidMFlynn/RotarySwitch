@@ -2,10 +2,11 @@
 // Rotary Switch for Track Ladder Selection
 // Filename: R-Switch.scad
 // Created: 5/31/2019
-// Revision: 1.1.2 5/10/2021
+// Revision: 1.1.3 5/14/2021
 // Units: mm
 // ******************************************
 //  ***** History *****
+// 1.1.3 5/14/2021 Added 4 and 10 Code switches.
 // 1.1.2 5/10/2021 Deeper switch hole in knob, Added 7, Fixed animation.
 // 1.1.1 12/5/2019 Added 0.5mm to spacer ring.
 // 1.1.0 8/14/2019 Magnet Detents.
@@ -32,6 +33,9 @@
 //
 // *****************************************
 
+NPTextSize=6;
+//NPTextSize=7; // Good for single digit numbers
+
 CW14_nCodes=14;
 CW14_d=70;
 CW14_Code_a=22.5;
@@ -48,22 +52,48 @@ CW8_d=60;
 CW8_CodeOffset_a=16;
 CW8_Code_a=37.5;
 
+CW4_nCodes=4;
+CW4_d=60;
+CW4_CodeOffset_a=16;
+CW4_Code_a=37.5;
+/*
+CWn_nCodes=CW4_nCodes;
+CWn_d=CW4_d;
+CWn_CodeOffset_a=CW4_CodeOffset_a;
+CWn_Code_a=CW4_Code_a;
+/**/
+
 CW7_nCodes=7;
 CW7_d=60;
 CW7_CodeOffset_a=16;
 CW7_Code_a=37.5;
-//*
+/*
 CWn_nCodes=CW7_nCodes;
 CWn_d=CW7_d;
 CWn_CodeOffset_a=CW7_CodeOffset_a;
 CWn_Code_a=CW7_Code_a;
 /**/
 
+CW9_nCodes=9;
+CW9_d=70;
+CW9_CodeOffset_a=16;
+CW9_Code_a=30.0;
 /*
-CWn_nCodes=9;
-CWn_d=70;
-CWn_CodeOffset_a=16;
-CWn_Code_a=30.0;
+CWn_nCodes=CW9_nCodes;
+CWn_d=CW9_d;
+CWn_CodeOffset_a=CW9_CodeOffset_a;
+CWn_Code_a=CW9_Code_a;
+/**/
+
+CW10_nCodes=10;
+CW10_d=70;
+CW10_CodeOffset_a=16;
+CW10_Code_a=30.0;
+//*
+CWn_nCodes=CW10_nCodes;
+CWn_d=CW10_d;
+CWn_CodeOffset_a=CW10_CodeOffset_a;
+CWn_Code_a=CW10_Code_a;
 /**/
 
 //rotate([0,180,0]) DetentMagHolder();
@@ -74,7 +104,8 @@ CWn_Code_a=30.0;
 // Button on knob, n positions, w/ stop
 //
 // Knob(SP_d=CWn_d, nCodes=CWn_nCodes, HasButton=true);
-// NumberPlate(SP_d=CWn_d, nDetents=CWn_nCodes, Detent_a=CWn_Code_a);
+// Knob(SP_d=CWn_d, nCodes=CWn_nCodes, HasButton=false); // No button
+ NumberPlate(SP_d=CWn_d, nDetents=CWn_nCodes, Detent_a=CWn_Code_a);
 // rotate([180,0,0]) ReadHeadTopPlate(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, CodeOffset_a=CWn_CodeOffset_a);
 // SpacerRing(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, HasStop=true);
 // rotate([180,0,0]) ReadHeadBotPlate(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, CodeOffset_a=CWn_CodeOffset_a, PCB_Mounting_Ears=true);
@@ -132,6 +163,8 @@ CWn_Code_a=30.0;
 // ******************************************
 //  ***** for Viewing *****
 //
+// CodeWheelAnimation();
+//
 // ShowRotarySwitchExpanded();
 // ShowRotarySwitchExpanded(CW_d=CW8_d,nCodes=CW8_nCodes,Code_a=CW8_Code_a,CodeOffset_a=CW8_CodeOffset_a);
 // ShowRotarySwitchExpanded(CW_d=CW16_d,nCodes=CW16_nCodes,Code_a=CW16_Code_a,CodeOffset_a=CW16_CodeOffset_a,HasStop=false);
@@ -176,13 +209,13 @@ module CodeWheelAnimation(CW_d=CWn_d, nCodes=CWn_nCodes, Code_a=CWn_Code_a, Code
 	
 	translate([00,0,20])  color("Gray") NumberPlate(SP_d=CW_d, nDetents=nCodes, Detent_a=Code_a); 
 	
-	translate([0,0,4]) color("LightBlue") ReadHeadTopPlate(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a);
+	//translate([0,0,4]) color("LightBlue") ReadHeadTopPlate(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a);
 
 	translate([0,0,0]) color("Green") rotate([0,0,T_a]) 
 		CodeWheel(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a, HasStop=HasStop);
 	
-	//translate([40,0,20]) 
-	//translate([00,0,0]) color("Tan") SpacerRing(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, HasStop=true);
+	
+	translate([00,0,0]) color("Tan") SpacerRing(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, HasStop=true);
 	
 	color("LightGray") translate([0,0,-10.1]) ReadHeadBotPlate(CW_d=CW_d, nCodes=nCodes, Code_a=Code_a, CodeOffset_a=CodeOffset_a, PCB_Mounting_Ears=HasStop); 
 
@@ -344,7 +377,7 @@ module NumberPlate(SP_d=SelectionPlate_d, nDetents=16, Detent_a=0){
 	
 	for (j=[0:nDetents-1]) rotate([0,0,-(D_a*j+O_a)]) translate([0,-SP_d/2+6.5,0])
 		rotate([0,0,(D_a*j+O_a)]) linear_extrude(2) 
-			text(text=str(j+1),font="Liberation Sans:style=Bold", size=6,valign="center",halign="center");
+			text(text=str(j+1), font="Liberation Sans:style=Bold", size=NPTextSize, valign="center", halign="center");
 		
 } // NumberPlate
 
